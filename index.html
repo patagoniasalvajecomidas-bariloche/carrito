@@ -44,6 +44,20 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 /* SCREENS */
 .screen{display:none;flex:1;overflow-y:auto;padding:12px}
 .screen.active{display:block}
+#tab-pos{padding-bottom:90px}
+/* BUSCADOR */
+.search-bar{display:flex;align-items:center;gap:8px;background:#f5f5f0;border-radius:12px;padding:8px 12px;margin-bottom:12px}
+.search-bar input{flex:1;border:none;background:none;font-size:14px;color:#1a1a1a;outline:none}
+.search-bar input::placeholder{color:#bbb}
+/* COBRAR FLOTANTE */
+.cobrar-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-top:1px solid #e5e5e5;padding:10px 14px;z-index:50;display:none;align-items:center;gap:10px;box-shadow:0 -4px 16px rgba(0,0,0,.07)}
+.cobrar-bar.visible{display:flex}
+.cobrar-bar .cb-info{flex:1}
+.cobrar-bar .cb-items{font-size:11px;color:#888;margin-bottom:1px}
+.cobrar-bar .cb-total{font-size:19px;font-weight:800;color:#1a1a1a}
+.cobrar-bar .cb-btn{padding:14px 20px;border-radius:12px;background:#1D9E75;color:#fff;border:none;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap}
+.cobrar-bar .cb-btn:active{background:#178a63}
+.cobrar-bar .cb-clear{width:36px;height:36px;border-radius:9px;border:1px solid #ddd;background:#f5f5f0;font-size:16px;cursor:pointer;color:#aaa;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .top-bar h2{font-size:16px;font-weight:600}
 
@@ -199,17 +213,27 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
     <div class="stat"><div class="sl">Transacc.</div><div class="sv" id="s-txn">0</div></div>
     <div class="stat"><div class="sl">Carrito</div><div class="sv" id="s-items">0</div></div>
   </div>
+  <div class="search-bar">
+    <span>🔍</span>
+    <input type="search" id="prod-search" placeholder="Buscar producto..." oninput="filterSearch(this.value)" onkeydown="if(event.key==='Enter'){selectFirstResult()}">
+  </div>
   <div class="cat-filter" id="cat-filter"></div>
   <div class="grid" id="prod-grid"></div>
   <div id="cart-wrap" style="display:none">
     <div class="cart-wrap">
       <div class="cart-title">Carrito</div>
       <div id="cart-list"></div>
-      <div class="total-row"><span class="tl">Total</span><span class="tv" id="cart-total">$0</span></div>
-      <button class="btn btn-primary" onclick="cobrar()">Cobrar</button>
-      <button class="btn btn-ghost" onclick="clearCart()">Vaciar carrito</button>
     </div>
   </div>
+</div>
+<!-- COBRAR FLOTANTE -->
+<div class="cobrar-bar" id="cobrar-bar">
+  <button class="cb-clear" onclick="clearCart()" title="Vaciar">✕</button>
+  <div class="cb-info">
+    <div class="cb-items" id="cb-items-label">0 items</div>
+    <div class="cb-total" id="cb-total-label">$0</div>
+  </div>
+  <button class="cb-btn" onclick="cobrar()">Cobrar</button>
 </div>
 
 <div id="tab-stock" class="screen" style="display:none">
@@ -253,6 +277,12 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 
 <div id="tab-config" class="screen" style="display:none">
   <div class="top-bar"><h2>Configuración</h2></div>
+  <div class="sect-label">Zona de peligro</div>
+  <div class="cfg-box" style="border:1.5px solid #FCEBEB">
+    <p style="color:#A32D2D;font-weight:600;margin-bottom:6px">⚠️ Reset total de la aplicación</p>
+    <p>Borra todas las ventas, movimientos, precios y stock. No se puede deshacer.</p>
+    <button class="btn" style="margin-top:10px;background:#E24B4A;color:#fff;padding:12px;font-size:14px;font-weight:700;border-radius:12px;border:none;cursor:pointer;width:100%" onclick="resetTotal()">Borrar todo y empezar de cero</button>
+  </div>
   <div class="sect-label">Google Sheets</div>
   <div class="cfg-box">
     <p>URL de tu Google Apps Script para sincronizar ventas y movimientos.</p>
@@ -307,7 +337,12 @@ let pinEntry  = '';
 let selectedVendorIdx = null;
 let repFilter = 'todos';
 
-const save       = () => localStorage.setItem('pc_prods',   JSON.stringify(PRODS));
+const save = () => {
+  localStorage.setItem('pc_prods', JSON.stringify(PRODS));
+  // Verificar que se guardó
+  const check = JSON.parse(localStorage.getItem('pc_prods'));
+  console.log('Guardado OK, primer producto stock:', check[0]?.name, check[0]?.stock);
+};
 const saveVendors= () => localStorage.setItem('pc_vendors', JSON.stringify(VENDORS));
 const saveSales  = () => localStorage.setItem('pc_sales',   JSON.stringify(sales));
 const saveMovs   = () => localStorage.setItem('pc_movs',    JSON.stringify(movs));
@@ -413,7 +448,8 @@ function setCat(c) { activeCat=c; buildCats(); renderGrid(); }
 
 // ── GRILLA ──
 function renderGrid() {
-  const list = activeCat==='Todos' ? PRODS : PRODS.filter(p=>p.cat===activeCat);
+  let list = activeCat==='Todos' ? PRODS : PRODS.filter(p=>p.cat===activeCat);
+  if (searchQuery) list = PRODS.filter(p=>p.name.toLowerCase().includes(searchQuery));
   document.getElementById('prod-grid').innerHTML = list.map(p => {
     const i = PRODS.indexOf(p);
     const nostock = p.stock<=0 ? 'nostock' : '';
@@ -433,7 +469,7 @@ function renderGrid() {
 function addCart(i) {
   const p = PRODS[i];
   if (!p.price) { alert('Sin precio. Pedile al admin que lo configure.'); return; }
-  const ex = cart.find(c=>c.i===i);
+  const ex = cart.find(c=>c.name===p.name);
   if (ex) ex.qty++; else cart.push({i,name:p.name,price:p.price,qty:1});
   renderCart();
 }
@@ -445,10 +481,20 @@ function changeQty(idx,d) {
 function clearCart() { cart=[]; renderCart(); }
 function renderCart() {
   const total = cart.reduce((s,c)=>s+c.price*c.qty,0);
-  document.getElementById('s-items').textContent = cart.reduce((s,c)=>s+c.qty,0);
-  const wrap = document.getElementById('cart-wrap');
-  if (!cart.length) { wrap.style.display='none'; return; }
-  wrap.style.display='block';
+  const qty   = cart.reduce((s,c)=>s+c.qty,0);
+  document.getElementById('s-items').textContent = qty;
+  // Barra flotante
+  const bar = document.getElementById('cobrar-bar');
+  if (!cart.length) {
+    bar.classList.remove('visible');
+    document.getElementById('cart-wrap').style.display='none';
+    return;
+  }
+  bar.classList.add('visible');
+  document.getElementById('cb-items-label').textContent = qty + (qty===1?' item':' items');
+  document.getElementById('cb-total-label').textContent = fmt(total);
+  // Lista carrito
+  document.getElementById('cart-wrap').style.display='block';
   document.getElementById('cart-list').innerHTML = cart.map((c,idx)=>`
     <div class="cart-item">
       <span class="ci-name">${c.name}</span>
@@ -459,23 +505,36 @@ function renderCart() {
       </div>
       <span class="ci-sub">${fmt(c.price*c.qty)}</span>
     </div>`).join('');
-  document.getElementById('cart-total').textContent = fmt(total);
 }
 
 // ── COBRAR ──
 function cobrar() {
   const total = cart.reduce((s,c)=>s+c.price*c.qty,0);
   if (!total) return;
+  if (!confirm('Confirmar venta de ' + fmt(total) + '?')) return;
   const sale = {
     vendor: currentVendor.name,
     date: today(), time: timeNow(), total,
     items: cart.map(c=>({name:c.name,qty:c.qty,price:c.price,sub:c.price*c.qty}))
   };
-  cart.forEach(c=>{ PRODS[c.i].stock=Math.max(0,PRODS[c.i].stock-c.qty); });
+  // Descontar stock siempre por nombre
+  cart.forEach(c=>{
+    const prod = PRODS.find(p=>p.name===c.name);
+    if(prod){
+      console.log('Descontando', c.qty, 'de', prod.name, 'stock actual:', prod.stock);
+      prod.stock = Math.max(0, prod.stock - c.qty);
+      console.log('Stock nuevo:', prod.stock);
+    } else {
+      console.warn('Producto no encontrado:', c.name);
+    }
+  });
   sales.push(sale); saveSales(); save();
   syncSheets('venta', sale);
-  updateTopStats(); clearCart(); renderGrid();
-  alert('Venta registrada: '+fmt(total));
+  updateTopStats(); clearCart();
+  searchQuery='';
+  const si = document.getElementById('prod-search'); if(si) si.value='';
+  renderGrid();
+  alert('✓ Venta registrada: ' + fmt(total));
 }
 
 function updateTopStats() {
@@ -646,6 +705,65 @@ function showMsg(id,txt,type) {
   const el=document.getElementById(id);
   el.textContent=txt; el.className='msg msg-'+type;
   setTimeout(()=>{el.textContent='';el.className='msg';},3000);
+}
+
+// ── BÚSQUEDA ──
+let searchQuery = '';
+function filterSearch(q) {
+  searchQuery = q.trim().toLowerCase();
+  if (searchQuery) {
+    // Limpiar filtro de categoría al buscar
+    activeCat = 'Todos';
+    buildCats();
+  }
+  renderGrid();
+}
+function selectFirstResult() {
+  const visible = document.querySelectorAll('#prod-grid .prod-btn:not(.nostock)');
+  if (visible.length === 1) visible[0].click();
+  else if (visible.length > 0) visible[0].focus();
+}
+
+// Override renderGrid para incluir búsqueda
+const _renderGridOrig = renderGrid;
+window.renderGridWithSearch = function() {
+  let list = activeCat==='Todos' ? PRODS : PRODS.filter(p=>p.cat===activeCat);
+  if (searchQuery) list = PRODS.filter(p=>p.name.toLowerCase().includes(searchQuery));
+  document.getElementById('prod-grid').innerHTML = list.map(p => {
+    const i = PRODS.indexOf(p);
+    const nostock = p.stock<=0 ? 'nostock' : '';
+    const stk = p.stock<=0
+      ? `<span class="badge br">Sin stock</span>`
+      : p.stock<=3 ? `<span class="badge ba">Bajo (${p.stock})</span>`
+      : `<span class="pstock">Stock: ${p.stock}</span>`;
+    return `<button class="prod-btn ${nostock}" onclick="addCart(${i})">
+      <span class="pname">${p.name}</span>
+      <span class="pprice">${p.price>0?fmt(p.price):'Sin precio'}</span>
+      ${stk}
+    </button>`;
+  }).join('');
+}
+
+// ── RESET ──
+function resetTotal() {
+  if (!confirm('¿Seguro? Esto borra TODAS las ventas, movimientos, precios y stock. No se puede deshacer.')) return;
+  if (!confirm('Segunda confirmación: ¿Borrar todo?')) return;
+  // Resetear ventas y movimientos
+  sales = []; saveSales();
+  movs  = []; saveMovs();
+  // Resetear productos a precio 0 y stock 20
+  PRODS = (() => {
+    const p = [];
+    Object.entries(CATS).forEach(([cat,items]) => items.forEach(name => p.push({name,cat,price:0,stock:20})));
+    return p;
+  })();
+  save();
+  // Mantener vendors y sheets url
+  renderGrid();
+  updateTopStats();
+  alert('✓ Reset completo. Cargá los precios nuevamente en Config.');
+  goTab('pos', document.querySelector('.nav button'));
+  document.querySelector('.nav button').classList.add('on');
 }
 
 // ── INIT ──
