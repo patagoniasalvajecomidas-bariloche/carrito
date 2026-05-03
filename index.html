@@ -157,6 +157,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 <div id="login-screen">
   <div class="login-logo">Patagonia Comidas</div>
   <div class="login-sub">Seleccioná tu usuario</div>
+  <div style="font-size:10px;color:#ccc;margin-top:-24px;margin-bottom:28px;letter-spacing:1px">v4.1 — 3 may 2026</div>
   <div class="vendor-grid" id="vendor-grid"></div>
   <div class="pin-wrap" id="pin-wrap" style="display:none">
     <div class="pin-label" id="pin-label">Ingresá tu PIN</div>
@@ -183,7 +184,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 <!-- BARRA VENDEDOR -->
 <div class="vendor-bar" id="vendor-bar" style="display:none">
   <div><span style="font-size:11px;color:#888">Vendedor: </span><span class="vb-name" id="vb-name"></span></div>
-  <button onclick="logout()">Cerrar sesión</button>
+  <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:#aaa;letter-spacing:.5px">v4.1</span><button onclick="logout()">Cerrar sesión</button></div>
 </div>
 
 <!-- NAV -->
@@ -786,6 +787,7 @@ function resetTotal() {
   saveMovs();
   saveProds();
 
+  syncSheets('reset', {ts: new Date().toISOString()});
   syncSheets('precios', {productos: PRODS.map(p=>({name:p.name,cat:p.cat,price:p.price,stock:p.stock}))});
 
   cart = [];
