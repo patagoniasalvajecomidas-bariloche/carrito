@@ -513,7 +513,7 @@ function cobrar() {
   if (!total) return;
   if (!confirm('Confirmar venta de ' + fmt(total) + '?')) return;
   const sale = {
-    vendor: currentVendor.name,
+    vendor: currentVendor ? currentVendor.name : 'Sin vendedor',
     date: today(), time: timeNow(), total,
     items: cart.map(c=>({name:c.name,qty:c.qty,price:c.price,sub:c.price*c.qty}))
   };
@@ -676,7 +676,11 @@ function renderConfig() {
   document.getElementById('prod-config').innerHTML = PRODS.map((p,i)=>`
     <div class="cfg-item">
       <span class="ci-label">${p.name}</span>
-      <input type="number" placeholder="Precio" value="${p.price||''}" onchange="updatePrice(${i},this.value)">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="stepPrice(${i},-100)" style="width:28px;height:28px;border:1px solid var(--color-border-secondary,#ddd);border-radius:8px;background:none;cursor:pointer;font-size:16px;font-weight:600;color:#666;display:flex;align-items:center;justify-content:center">−</button>
+        <input type="number" step="100" min="0" placeholder="0" value="${p.price||''}" onchange="updatePrice(${i},this.value)" style="width:90px;padding:6px 8px;border:1px solid #ddd;border-radius:9px;font-size:13px;text-align:right;background:#fff;color:#1a1a1a">
+        <button onclick="stepPrice(${i},100)" style="width:28px;height:28px;border:1px solid var(--color-border-secondary,#ddd);border-radius:8px;background:none;cursor:pointer;font-size:16px;font-weight:600;color:#1D9E75;display:flex;align-items:center;justify-content:center">+</button>
+      </div>
     </div>`).join('');
 }
 
@@ -684,7 +688,32 @@ function updatePin(i,v) {
   if(v.length!==4||isNaN(v)){alert('El PIN debe ser de 4 dígitos');return;}
   VENDORS[i].pin=v; saveVendors();
 }
-function updatePrice(i,v) { PRODS[i].price=parseFloat(v)||0; save(); renderGrid(); }
+function stepPrice(i, delta) {
+  const input = document.querySelectorAll('#prod-config input[type=number]')[i];
+  const cur = parseFloat(input?.value) || PRODS[i].price || 0;
+  const nuevo = Math.max(0, cur + delta);
+  PRODS[i].price = nuevo;
+  if (input) input.value = nuevo;
+  save(); renderGrid();
+  clearTimeout(window._priceTimer);
+  window._priceTimer = setTimeout(() => syncPrecios(), 1500);
+}
+
+function updatePrice(i,v) {
+  PRODS[i].price = parseFloat(v)||0;
+  save(); renderGrid();
+  // Sincronizar precios a Sheets con debounce
+  clearTimeout(window._priceTimer);
+  window._priceTimer = setTimeout(() => syncPrecios(), 1500);
+}
+
+function syncPrecios() {
+  const snapshot = PRODS.map(p => ({name:p.name, cat:p.cat, price:p.price, stock:p.stock}));
+  syncSheets('precios', {productos: snapshot});
+  showMsg('sheets-msg', 'Precios sincronizados con Sheets ✓', 'ok');
+  // Mostrar msg aunque no estemos en config
+  console.log('Precios enviados a Sheets:', snapshot.length, 'productos');
+}
 
 function saveUrl() {
   sheetsUrl=document.getElementById('sheets-url').value.trim();
@@ -758,6 +787,7 @@ function resetTotal() {
     return p;
   })();
   save();
+  syncSheets('precios', {productos: PRODS.map(p=>({name:p.name,cat:p.cat,price:p.price,stock:p.stock}))});
   // Mantener vendors y sheets url
   renderGrid();
   updateTopStats();
