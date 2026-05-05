@@ -1529,7 +1529,37 @@
         <div class="resumen-card" id="resumenCard"><!-- se llena dinámico --></div>
         <div class="resumen-ventas-lista" id="resumenLista"><!-- se llena dinámico --></div>
         <button class="btn-cerrar-dia" onclick="cerrarDia()">🔒 Cerrar turno y resetear</button>
+        <button onclick="abrirModalResetTotal()" style="
+            margin:8px auto 0; display:block; width:100%; max-width:320px;
+            background:transparent; border:2px solid #b91c1c; color:#b91c1c;
+            border-radius:12px; padding:10px 0; font-size:0.85rem; font-weight:700;
+            cursor:pointer; letter-spacing:0.5px; opacity:0.7;
+        ">🗑️ Resetear planilla completa (pruebas)</button>
     </div>
+</div>
+
+<!-- MODAL RESET TOTAL -->
+<div id="modalResetTotal" onclick="cerrarModalResetTotal(event)" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
+  <div onclick="event.stopPropagation()" style="background:#1a1a2e;border-radius:20px;width:90%;max-width:360px;padding:28px 24px;text-align:center;border:2px solid #7f1d1d;">
+    <div style="font-size:2.2rem;margin-bottom:8px;">⚠️</div>
+    <div style="font-weight:900;font-size:1.1rem;color:#fca5a5;margin-bottom:6px;">RESETEAR PLANILLA</div>
+    <div style="font-size:0.82rem;color:#aaa;margin-bottom:20px;line-height:1.5;">
+      Esto borrará <strong style="color:#f87171">todas las ventas, fiados, movimientos de caja y clientes</strong>, y pondrá el stock del inventario en 0.<br><br>
+      Esta acción <strong style="color:#f87171">no se puede deshacer</strong>.<br>Ingresá el PIN de seguridad para continuar.
+    </div>
+    <input id="resetPinInput" type="password" inputmode="numeric" maxlength="6"
+      placeholder="PIN de seguridad"
+      style="width:100%;box-sizing:border-box;padding:12px 16px;border-radius:10px;border:2px solid #7f1d1d;
+             background:#0f0f1a;color:#fff;font-size:1.3rem;text-align:center;letter-spacing:6px;
+             margin-bottom:16px;outline:none;"
+      onkeydown="if(event.key==='Enter') ejecutarResetTotal()"
+    >
+    <div id="resetMsgError" style="color:#f87171;font-size:0.82rem;min-height:18px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="cerrarModalResetTotal()" style="flex:1;padding:12px;border-radius:10px;border:none;background:#2a2a3e;color:#aaa;font-weight:700;cursor:pointer;font-size:0.9rem;">Cancelar</button>
+      <button onclick="ejecutarResetTotal()" id="resetBtn" style="flex:1;padding:12px;border-radius:10px;border:none;background:#7f1d1d;color:#fff;font-weight:900;cursor:pointer;font-size:0.9rem;">RESETEAR TODO</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL CONFIRMACIÓN VENTA -->
@@ -9879,6 +9909,55 @@ async function cargarHistorialSalidas() {
         el.innerHTML = '<div style="text-align:center;color:#c62828;padding:20px;font-size:0.85rem;">❌ Error al cargar datos</div>';
     }
 }
+
+// ========== RESET TOTAL PLANILLA ==========
+function abrirModalResetTotal() {
+    const modal = document.getElementById('modalResetTotal');
+    document.getElementById('resetPinInput').value = '';
+    document.getElementById('resetMsgError').textContent = '';
+    document.getElementById('resetBtn').disabled = false;
+    document.getElementById('resetBtn').textContent = 'RESETEAR TODO';
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('resetPinInput').focus(), 100);
+}
+
+function cerrarModalResetTotal(e) {
+    if (e && e.target !== document.getElementById('modalResetTotal')) return;
+    document.getElementById('modalResetTotal').style.display = 'none';
+}
+
+async function ejecutarResetTotal() {
+    const pin = document.getElementById('resetPinInput').value.trim();
+    const errEl = document.getElementById('resetMsgError');
+    const btn = document.getElementById('resetBtn');
+    if (!pin) { errEl.textContent = 'Ingresá el PIN'; return; }
+    btn.disabled = true;
+    btn.textContent = 'Reseteando...';
+    errEl.textContent = '';
+    try {
+        const url = API_URL + '?action=resetearPlanilla&pin=' + encodeURIComponent(pin) + '&t=' + Date.now();
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.ok) {
+            document.getElementById('modalResetTotal').style.display = 'none';
+            const keysToClean = Object.keys(localStorage).filter(k => k.startsWith('patagonia_'));
+            keysToClean.forEach(k => localStorage.removeItem(k));
+            alert('✅ ' + data.msg + '\n\nRecargando la app...');
+            location.reload();
+        } else {
+            errEl.textContent = data.msg || 'Error desconocido';
+            btn.disabled = false;
+            btn.textContent = 'RESETEAR TODO';
+            document.getElementById('resetPinInput').value = '';
+            document.getElementById('resetPinInput').focus();
+        }
+    } catch(e) {
+        errEl.textContent = 'Error de conexión: ' + e.message;
+        btn.disabled = false;
+        btn.textContent = 'RESETEAR TODO';
+    }
+}
+
 </script>
 
 </body>
