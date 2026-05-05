@@ -1034,7 +1034,7 @@
 
         <!-- FILA 2: Sistema -->
         <div class="header-right" style="width:100%;justify-content:space-between;gap:4px;">
-            <a href="patagonia-horario.html?v=2" class="btn-resumen" title="Horario" style="background:rgba(0,188,212,0.3);border-color:rgba(0,188,212,0.6);flex:1;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">🕐</a>
+            <button onclick="abrirModalHorario()" class="btn-resumen" title="Horario del local" style="background:rgba(0,188,212,0.3);border-color:rgba(0,188,212,0.6);flex:1;">🕐</button>
             <button class="btn-resumen" onclick="abrirConfigProveedores()" title="Configuración" style="background:rgba(255,193,7,0.3);border-color:rgba(255,193,7,0.6);flex:1;text-align:center;">⚙️</button>
             <button class="btn-resumen" id="btnActualizar" onclick="forzarActualizacion()" title="Actualizar" style="background:rgba(105,240,174,0.2);border-color:rgba(105,240,174,0.5);flex:1;text-align:center;">🔄</button>
             <button class="btn-resumen" id="btnNotifPos" onclick="abrirNotifPos()" title="Notificaciones"
@@ -6900,26 +6900,25 @@ document.getElementById('modalWifiQR').addEventListener('click', function(e) {
 </div>
 
 <script>
-const GAS_URL_FLYER = 'https://script.google.com/macros/s/AKfycbxhKFk2WAi-KRY5xGBsI6_6Pvp3jDjt8mSRXvy7I1WehNmBpJamqK9G9Q1ZJSCSgAdfDA/exec';
+const GAS_URL_FLYER = API_URL;
 let _flyerCanvasAdmin = null;
 let _flyerProductos = [];
 let _flyerHoraCierre = 22;
 
 async function abrirFlyerAdmin() {
-    mostrarToast('⏳ Cargando cervezas...', 'verde');
+    mostrarToast('⏳ Cargando promos...', 'verde');
     try {
-        const r = await fetch(GAS_URL_FLYER + '?action=getJuevesCervecero&t=' + Date.now(),
+        const r = await fetch(API_URL + '?action=getPromoEspecial&t=' + Date.now(),
                               { redirect: 'follow', signal: AbortSignal.timeout(API_TIMEOUT_MS) });
         const data = await r.json();
-        if (!data.success || !data.productos.length) {
-            mostrarToast('⚠️ Sin cervezas disponibles para flyer', 'rojo'); return;
+        if (!data.success || !data.productos || !data.productos.length) {
+            mostrarToast('⚠️ Sin productos en categoría PROMOS con stock', 'rojo'); return;
         }
         _flyerProductos  = data.productos;
         _flyerHoraCierre = data.horaCierre || 22;
     } catch(e) {
         mostrarToast('❌ Error cargando datos', 'rojo'); return;
     }
-
     const canvas = _generarCanvasFlyer(_flyerProductos, _flyerHoraCierre);
     _flyerCanvasAdmin = canvas;
     const wrap = document.getElementById('flyerWrapAdmin');
@@ -6928,47 +6927,36 @@ async function abrirFlyerAdmin() {
     document.getElementById('flyerOverlayAdmin').classList.add('open');
 }
 
-// Simplifica nombres de cervezas para el flyer: quita CERVEZA, X, LATA, ANDINA
-// Mantiene: marca + tipo + tamaño. Máx 4 palabras.
-function _simplificarNombreCerveza(nombre) {
-    const ELIMINAR = /\b(CERVEZA|CERVEZAS|X|LATA|LATAS|ANDINA|CLASICA|CLÁSICA|POR)\b/g;
-    const limpio = nombre
-        .toUpperCase()
-        .replace(ELIMINAR, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    // Agregar CLÁSICA de vuelta si corresponde (normalizado)
-    const palabras = limpio.split(' ').filter(Boolean);
-    return palabras.slice(0, 4).join(' ');
+function _simplificarNombrePromo(nombre) {
+    const palabras = nombre.toUpperCase().trim().split(/\s+/);
+    return palabras.slice(0, 5).join(' ');
 }
 
 function _generarCanvasFlyer(prods, horaCierre) {
-    // 1. Calcular producto destacado (mayor ahorro absoluto)
-    let prodsOrdenados = prods.map(p => {
-        const precioFinal = (p.precioPromo > 0) ? p.precioPromo : Math.round((p.precio || 0) * 0.85);
-        const ahorro = (p.precio || 0) - precioFinal;
-        const pct = p.precio > 0 ? ahorro / p.precio : 0;
-        return { ...p, _precioFinal: precioFinal, _ahorro: ahorro, _pct: pct, destacado: false };
+    // ── ordenar: mayor ahorro primero, destacado al tope ──
+    let lista = prods.map(p => {
+        const pf = (p.precioPromo > 0) ? p.precioPromo : Math.round((p.precio||0)*0.85);
+        const ah = (p.precio||0) - pf;
+        const pct = p.precio > 0 ? ah/p.precio : 0;
+        return { ...p, _pf: pf, _ah: ah, _pct: pct, dest: false };
     });
-    let idxDestacado = 0;
-    prodsOrdenados.forEach((p, i) => {
-        const actual = prodsOrdenados[idxDestacado];
-        if (p._ahorro > actual._ahorro || (p._ahorro === actual._ahorro && p._pct > actual._pct)) idxDestacado = i;
+    let iDest = 0;
+    lista.forEach((p,i) => {
+        if (p._ah > lista[iDest]._ah || (p._ah===lista[iDest]._ah && p._pct>lista[iDest]._pct)) iDest=i;
     });
-    prodsOrdenados[idxDestacado].destacado = true;
-    // Destacado primero
-    const dest = prodsOrdenados.splice(idxDestacado, 1)[0];
-    prodsOrdenados = [dest, ...prodsOrdenados];
+    lista[iDest].dest = true;
+    const dest = lista.splice(iDest,1)[0];
+    lista = [dest, ...lista.slice(0,4)]; // destacado + máx 4 más
 
-    // 2. Dimensiones dinámicas
-    const W = 600, PADDING = 32;
-    const ROW_H_NORMAL = 95, ROW_H_DEST = 168;
-    const HEADER_H = 160, FOOTER_H = 100;
-    const totalRowsH = ROW_H_DEST + (prodsOrdenados.length - 1) * ROW_H_NORMAL;
-    const H = HEADER_H + totalRowsH + FOOTER_H + PADDING;
-    const canvas = document.createElement('canvas');
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
+    const W=600, PAD=28;
+    const HEADER_H=200, FOOTER_H=110;
+    const ROW_DEST=150, ROW_NORM=88;
+    const H = HEADER_H + ROW_DEST + (lista.length-1)*ROW_NORM + FOOTER_H;
+
+    const cv = document.createElement('canvas');
+    cv.width=W; cv.height=H;
+    const ctx = cv.getContext('2d');
+
     if (!ctx.roundRect) {
         ctx.roundRect = function(x,y,w,h,r){
             this.beginPath();this.moveTo(x+r,y);this.lineTo(x+w-r,y);
@@ -6979,119 +6967,203 @@ function _generarCanvasFlyer(prods, horaCierre) {
         };
     }
 
-    // 3. Fondo
-    const bg = ctx.createLinearGradient(0,0,0,H);
-    bg.addColorStop(0,'#0b0b0b');bg.addColorStop(0.5,'#1a1208');bg.addColorStop(1,'#000000');
-    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='rgba(255,255,255,0.01)';
-    for(let i=0;i<H;i+=4){ctx.fillRect(0,i,W,1);}
-    const glowLine=ctx.createLinearGradient(0,0,W,0);
-    glowLine.addColorStop(0,'rgba(249,168,37,0)');glowLine.addColorStop(0.5,'rgba(249,168,37,0.8)');glowLine.addColorStop(1,'rgba(249,168,37,0)');
-    ctx.strokeStyle=glowLine;ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(0,12);ctx.lineTo(W,12);ctx.stroke();
+    // ══ FONDO — Patagonia: lago+montaña oscuro ══
+    const bgGrad = ctx.createLinearGradient(0,0,0,H);
+    bgGrad.addColorStop(0,  '#0a1628');
+    bgGrad.addColorStop(0.3,'#0d2b45');
+    bgGrad.addColorStop(0.6,'#0f3d2e');
+    bgGrad.addColorStop(1,  '#071a12');
+    ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
 
-    // 4. Header
-    ctx.font='bold 48px sans-serif';ctx.fillStyle='#f9a825';ctx.textAlign='center';
-    ctx.fillText('🎉 PROMO ESPECIAL',W/2,70);
-    ctx.font='18px sans-serif';ctx.fillStyle='#ffffff';
-    ctx.fillText('PROMOS ESPECIALES',W/2,100);
-    ctx.font='bold 16px sans-serif';ctx.fillStyle='#f9a825';
-    ctx.fillText(`⏰ Hasta las ${horaCierre}:00hs`,W/2,128);
-    ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(PADDING,145);ctx.lineTo(W-PADDING,145);ctx.stroke();
+    // Estrellas sutiles
+    ctx.fillStyle='rgba(255,255,255,0.5)';
+    [[55,18],[120,8],[210,22],[340,6],[450,14],[530,20],[80,35],[390,28],[500,40]].forEach(([x,y])=>{
+        ctx.beginPath(); ctx.arc(x,y,1,0,Math.PI*2); ctx.fill();
+    });
 
-    // 5. Filas
-    let yOffset = HEADER_H;
-    prodsOrdenados.forEach((p, idx) => {
-        const ROW_H = p.destacado ? ROW_H_DEST : ROW_H_NORMAL;
-        const cy = yOffset + ROW_H / 2;
+    // Silueta de montañas (Cerro Catedral / Tronador)
+    ctx.fillStyle='rgba(255,255,255,0.04)';
+    ctx.beginPath();
+    ctx.moveTo(0,HEADER_H);
+    ctx.lineTo(60,HEADER_H-60); ctx.lineTo(110,HEADER_H-30);
+    ctx.lineTo(170,HEADER_H-90); ctx.lineTo(220,HEADER_H-50);
+    ctx.lineTo(280,HEADER_H-110); ctx.lineTo(340,HEADER_H-60);
+    ctx.lineTo(400,HEADER_H-80); ctx.lineTo(460,HEADER_H-40);
+    ctx.lineTo(520,HEADER_H-70); ctx.lineTo(580,HEADER_H-35);
+    ctx.lineTo(W,HEADER_H); ctx.closePath(); ctx.fill();
 
-        if (p.destacado) {
-            // Fondo dorado
-            const destBg = ctx.createLinearGradient(0,yOffset,W,yOffset+ROW_H);
-            destBg.addColorStop(0,'rgba(249,168,37,0.18)');
-            destBg.addColorStop(0.5,'rgba(255,140,0,0.22)');
-            destBg.addColorStop(1,'rgba(249,168,37,0.12)');
-            ctx.fillStyle=destBg;ctx.fillRect(0,yOffset,W,ROW_H);
-            // Bordes
-            ctx.strokeStyle='#f9a825';ctx.lineWidth=2;
-            ctx.beginPath();ctx.moveTo(0,yOffset+1);ctx.lineTo(W,yOffset+1);ctx.stroke();
-            ctx.beginPath();ctx.moveTo(0,yOffset+ROW_H-1);ctx.lineTo(W,yOffset+ROW_H-1);ctx.stroke();
-            // Badge MEJOR OFERTA — fijo arriba
-            ctx.fillStyle='#f9a825';
-            ctx.beginPath();ctx.roundRect(PADDING,yOffset+10,172,26,6);ctx.fill();
-            ctx.fillStyle='#000';ctx.font='bold 13px sans-serif';ctx.textAlign='left';
-            ctx.fillText('🔥 MEJOR OFERTA',PADDING+8,yOffset+26);
-            // Nombre — debajo del badge con margen
-            const nom=_simplificarNombreCerveza(p.nombre);
-            ctx.font='bold 26px sans-serif';ctx.fillStyle='#f9a825';ctx.textAlign='left';
-            ctx.fillText(nom,PADDING,yOffset+60);
+    // Nieves perpetuas
+    ctx.fillStyle='rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(260,HEADER_H-110); ctx.lineTo(280,HEADER_H-130);
+    ctx.lineTo(300,HEADER_H-110); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(510,HEADER_H-70); ctx.lineTo(520,HEADER_H-82);
+    ctx.lineTo(530,HEADER_H-70); ctx.closePath(); ctx.fill();
+
+    // Reflejo de lago (parte inferior del header)
+    const lakeGrad = ctx.createLinearGradient(0,HEADER_H-30,0,HEADER_H+20);
+    lakeGrad.addColorStop(0,'rgba(13,107,180,0.25)');
+    lakeGrad.addColorStop(1,'rgba(13,107,180,0)');
+    ctx.fillStyle=lakeGrad;
+    ctx.fillRect(0,HEADER_H-30,W,50);
+
+    // Línea dorada superior
+    const lineGold = ctx.createLinearGradient(0,0,W,0);
+    lineGold.addColorStop(0,'rgba(212,175,55,0)');
+    lineGold.addColorStop(0.5,'rgba(212,175,55,0.9)');
+    lineGold.addColorStop(1,'rgba(212,175,55,0)');
+    ctx.strokeStyle=lineGold; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(0,6); ctx.lineTo(W,6); ctx.stroke();
+
+    // ══ HEADER ══
+    // Badge "CARRITO"
+    ctx.fillStyle='rgba(212,175,55,0.15)';
+    ctx.beginPath(); ctx.roundRect(W/2-70,18,140,26,13); ctx.fill();
+    ctx.strokeStyle='rgba(212,175,55,0.5)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(W/2-70,18,140,26,13); ctx.stroke();
+    ctx.font='bold 11px sans-serif'; ctx.fillStyle='#d4af37';
+    ctx.textAlign='center'; ctx.fillText('🛒 PATAGONIA SALVAJE',W/2,35);
+
+    // Nombre del carrito en dorado
+    ctx.font='bold 44px sans-serif'; ctx.fillStyle='#d4af37';
+    ctx.shadowColor='rgba(212,175,55,0.5)'; ctx.shadowBlur=20;
+    ctx.fillText('PROMOS',W/2,88);
+    ctx.shadowBlur=0;
+
+    // Subtítulo
+    ctx.font='italic 16px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.75)';
+    ctx.fillText('Frente al Llao Llao · Bariloche',W/2,112);
+
+    // Hora y emoji montaña
+    ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.65)';
+    ctx.fillText(`🏔️  Hasta las ${horaCierre}:00hs · Solo por hoy`,W/2,136);
+
+    // Separador
+    const sep = ctx.createLinearGradient(PAD,0,W-PAD,0);
+    sep.addColorStop(0,'rgba(212,175,55,0)');
+    sep.addColorStop(0.5,'rgba(212,175,55,0.6)');
+    sep.addColorStop(1,'rgba(212,175,55,0)');
+    ctx.strokeStyle=sep; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PAD,155); ctx.lineTo(W-PAD,155); ctx.stroke();
+
+    // Tagline paisaje
+    ctx.font='italic 13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.fillText('🌄 Lago Nahuel Huapi de fondo · sabor patagónico en cada mordida',W/2,175);
+
+    // ══ FILAS DE PRODUCTOS ══
+    let yOff = HEADER_H;
+    lista.forEach((p, idx) => {
+        const RH = p.dest ? ROW_DEST : ROW_NORM;
+        const cy = yOff + RH/2;
+        const nom = _simplificarNombrePromo(p.nombre);
+
+        if (p.dest) {
+            // Fondo dorado premium
+            const destBg = ctx.createLinearGradient(0,yOff,W,yOff+RH);
+            destBg.addColorStop(0,'rgba(212,175,55,0.18)');
+            destBg.addColorStop(0.5,'rgba(180,130,30,0.22)');
+            destBg.addColorStop(1,'rgba(212,175,55,0.12)');
+            ctx.fillStyle=destBg; ctx.fillRect(0,yOff,W,RH);
+            // Bordes dorados
+            ctx.strokeStyle='rgba(212,175,55,0.5)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(0,yOff+1); ctx.lineTo(W,yOff+1); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0,yOff+RH-1); ctx.lineTo(W,yOff+RH-1); ctx.stroke();
+            // Badge MEJOR OFERTA
+            ctx.fillStyle='#d4af37';
+            ctx.beginPath(); ctx.roundRect(PAD,yOff+10,160,24,5); ctx.fill();
+            ctx.fillStyle='#000'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+            ctx.fillText('🔥 MEJOR OFERTA',PAD+8,yOff+26);
+            // Nombre
+            ctx.font='bold 24px sans-serif'; ctx.fillStyle='#f5e6a3';
+            ctx.fillText(nom,PAD,yOff+62);
             // Precio tachado
-            ctx.font='17px sans-serif';ctx.fillStyle='#9e9e9e';
-            const pOrig=`$${p.precio.toLocaleString('es-AR')}`;
-            ctx.fillText(pOrig,PADDING,yOffset+82);
-            const ow=ctx.measureText(pOrig).width;
-            ctx.strokeStyle='#9e9e9e';ctx.lineWidth=2;
-            ctx.beginPath();ctx.moveTo(PADDING,yOffset+78);ctx.lineTo(PADDING+ow,yOffset+78);ctx.stroke();
-            // Precio promo con glow
-            ctx.shadowColor='#00e676';ctx.shadowBlur=16;
-            ctx.font='bold 58px sans-serif';ctx.fillStyle='#00e676';ctx.textAlign='left';
-            ctx.fillText(`$${p._precioFinal.toLocaleString('es-AR')}`,PADDING,yOffset+130);
-            ctx.shadowColor='transparent';ctx.shadowBlur=0;
-            // Ahorro
-            ctx.font='bold 14px sans-serif';ctx.fillStyle='rgba(0,230,118,0.9)';
-            ctx.fillText(`Ahorrás $${p._ahorro.toLocaleString('es-AR')}`,PADDING,yOffset+148);
-            // Badge derecha
-            const bx=W-PADDING-100,by=cy-26;
-            ctx.fillStyle='#ff3b30';ctx.beginPath();ctx.roundRect(bx,by,90,50,10);ctx.fill();
-            ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=2;
-            ctx.beginPath();ctx.roundRect(bx,by,90,50,10);ctx.stroke();
-            ctx.fillStyle='#fff';ctx.font='bold 22px sans-serif';ctx.textAlign='center';
-            ctx.fillText('🍺',bx+45,cy+2);
-            ctx.font='bold 10px sans-serif';ctx.fillStyle='rgba(255,255,255,0.95)';
-            ctx.fillText('OFERTA',bx+45,cy+18);
+            if (p._ah > 0) {
+                ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.45)';
+                const orig = '$' + p.precio.toLocaleString('es-AR');
+                ctx.fillText(orig,PAD,yOff+82);
+                const ow = ctx.measureText(orig).width;
+                ctx.strokeStyle='rgba(255,255,255,0.45)'; ctx.lineWidth=1.5;
+                ctx.beginPath(); ctx.moveTo(PAD,yOff+78); ctx.lineTo(PAD+ow,yOff+78); ctx.stroke();
+            }
+            // Precio promo
+            ctx.shadowColor='#52e88a'; ctx.shadowBlur=18;
+            ctx.font='bold 52px sans-serif'; ctx.fillStyle='#52e88a';
+            ctx.fillText('$' + p._pf.toLocaleString('es-AR'),PAD,yOff+128);
+            ctx.shadowBlur=0;
+            // Ahorro badge
+            if (p._ah > 0) {
+                ctx.font='bold 12px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.85)';
+                ctx.fillText('Ahorrás $' + p._ah.toLocaleString('es-AR'),PAD,yOff+146);
+            }
+            // Emoji carrito derecha
+            const bx=W-PAD-88, by=cy-28;
+            ctx.fillStyle='rgba(82,232,138,0.15)';
+            ctx.beginPath(); ctx.roundRect(bx,by,78,56,10); ctx.fill();
+            ctx.strokeStyle='rgba(82,232,138,0.4)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.roundRect(bx,by,78,56,10); ctx.stroke();
+            ctx.font='28px sans-serif'; ctx.textAlign='center';
+            ctx.fillText('🍔',bx+39,cy+6);
+            ctx.font='bold 9px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.9)';
+            ctx.fillText('TOP',bx+39,cy+20);
         } else {
-            ctx.fillStyle=idx%2===0?'rgba(255,255,255,0.02)':'rgba(249,168,37,0.02)';
-            ctx.fillRect(0,yOffset,W,ROW_H);
-            const nom=_simplificarNombreCerveza(p.nombre);
-            ctx.font='bold 26px sans-serif';ctx.fillStyle='#ffffff';ctx.textAlign='left';
-            ctx.fillText(nom,PADDING,cy-24);
-            ctx.font='16px sans-serif';ctx.fillStyle='#9e9e9e';
-            const pOrig=`$${p.precio.toLocaleString('es-AR')}`;
-            ctx.fillText(pOrig,PADDING,cy-4);
-            const ow=ctx.measureText(pOrig).width;
-            ctx.strokeStyle='#9e9e9e';ctx.lineWidth=2;
-            ctx.beginPath();ctx.moveTo(PADDING,cy-8);ctx.lineTo(PADDING+ow,cy-8);ctx.stroke();
-            ctx.font='bold 42px sans-serif';ctx.fillStyle='#00e676';ctx.textAlign='left';
-            ctx.fillText(`$${p._precioFinal.toLocaleString('es-AR')}`,PADDING,cy+30);
-            ctx.font='13px sans-serif';ctx.fillStyle='rgba(0,230,118,0.8)';
-            ctx.fillText(`Ahorrás $${p._ahorro.toLocaleString('es-AR')}`,PADDING,cy+50);
-            const bx=W-PADDING-100,by=cy-22;
-            ctx.fillStyle='#d32f2f';ctx.beginPath();ctx.roundRect(bx,by,90,44,10);ctx.fill();
-            ctx.fillStyle='#fff';ctx.font='bold 22px sans-serif';ctx.textAlign='center';
-            ctx.fillText('🍺',bx+45,cy+4);
-            ctx.font='bold 10px sans-serif';ctx.fillStyle='rgba(255,255,255,0.95)';
-            ctx.fillText('OFERTA',bx+45,cy+20);
-            if(idx<prodsOrdenados.length-1){
-                ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1;
-                ctx.beginPath();ctx.moveTo(PADDING,yOffset+ROW_H-4);ctx.lineTo(W-PADDING,yOffset+ROW_H-4);ctx.stroke();
+            // Fila normal
+            ctx.fillStyle = idx%2===0 ? 'rgba(255,255,255,0.02)' : 'rgba(212,175,55,0.03)';
+            ctx.fillRect(0,yOff,W,RH);
+            ctx.font='bold 20px sans-serif'; ctx.fillStyle='#e8e8e8'; ctx.textAlign='left';
+            ctx.fillText(nom,PAD,yOff+26);
+            if (p._ah > 0) {
+                ctx.font='13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.38)';
+                const orig = '$' + p.precio.toLocaleString('es-AR');
+                ctx.fillText(orig,PAD,yOff+44);
+                const ow = ctx.measureText(orig).width;
+                ctx.strokeStyle='rgba(255,255,255,0.38)'; ctx.lineWidth=1.2;
+                ctx.beginPath(); ctx.moveTo(PAD,yOff+40); ctx.lineTo(PAD+ow,yOff+40); ctx.stroke();
+            }
+            ctx.font='bold 34px sans-serif'; ctx.fillStyle='#52e88a';
+            ctx.fillText('$' + p._pf.toLocaleString('es-AR'),PAD,yOff+76);
+            if (p._ah > 0) {
+                ctx.font='11px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.7)';
+                ctx.fillText('Ahorrás $' + p._ah.toLocaleString('es-AR'), PAD+ctx.measureText('$' + p._pf.toLocaleString('es-AR')).width + 10, yOff+76);
+            }
+            // Emoji
+            ctx.font='22px sans-serif'; ctx.textAlign='center';
+            ctx.fillText(['🌮','🍟','🌭','🥤','🍕'][idx%5], W-PAD-20, cy+8);
+            if (idx < lista.length-1) {
+                ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1;
+                ctx.beginPath(); ctx.moveTo(PAD,yOff+RH-2); ctx.lineTo(W-PAD,yOff+RH-2); ctx.stroke();
             }
         }
         ctx.textAlign='left';
-        yOffset+=ROW_H;
+        yOff += RH;
     });
 
-    // 6. Footer
-    const fy=yOffset;
-    ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(PADDING,fy+10);ctx.lineTo(W-PADDING,fy+10);ctx.stroke();
-    ctx.font='bold 26px sans-serif';ctx.fillStyle='#f9a825';ctx.textAlign='center';
-    ctx.fillText('🔥 🔥 SOLO HOY',W/2,fy+50);
-    ctx.font='14px sans-serif';ctx.fillStyle='#ffffff';
-    ctx.fillText('Stock limitado • Hasta agotar',W/2,fy+72);
-    ctx.font='12px sans-serif';ctx.fillStyle='rgba(255,255,255,0.6)';
-    ctx.fillText('🛒 patagonia-salvaje.vercel.app',W/2,fy+92);
-    ctx.textAlign='left';return canvas;
+    // ══ FOOTER ══
+    const fy = yOff;
+    ctx.strokeStyle='rgba(212,175,55,0.3)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PAD,fy+8); ctx.lineTo(W-PAD,fy+8); ctx.stroke();
+
+    // Tagline principal
+    ctx.font='bold 22px sans-serif'; ctx.fillStyle='#d4af37';
+    ctx.textAlign='center'; ctx.shadowColor='rgba(212,175,55,0.4)'; ctx.shadowBlur=12;
+    ctx.fillText('🏔️ PATAGONIA SALVAJE 🏔️',W/2,fy+38);
+    ctx.shadowBlur=0;
+
+    ctx.font='13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
+    ctx.fillText('Frente al Hotel Llao Llao · Bariloche · Río Negro',W/2,fy+58);
+
+    ctx.font='12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.35)';
+    ctx.fillText('Stock limitado · Precios de hoy · Hasta agotar',W/2,fy+76);
+
+    ctx.font='bold 11px sans-serif'; ctx.fillStyle='rgba(212,175,55,0.7)';
+    ctx.fillText('🛒 patagonia-salvaje.vercel.app',W/2,fy+96);
+
+    // Línea dorada inferior
+    ctx.strokeStyle=lineGold; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(0,H-4); ctx.lineTo(W,H-4); ctx.stroke();
+
+    ctx.textAlign='left';
+    return cv;
 }
 
 function cerrarFlyerAdmin() {
@@ -7109,13 +7181,13 @@ function descargarFlyerAdmin() {
 async function compartirFlyerAdminWA() {
     if (!_flyerCanvasAdmin) return;
     _flyerCanvasAdmin.toBlob(async blob => {
-        const file = new File([blob], 'jueves-cervecero.png', { type:'image/png' });
+        const file = new File([blob], 'promo-patagonia-salvaje.png', { type:'image/png' });
         if (navigator.share && navigator.canShare({ files:[file] })) {
             await navigator.share({ files:[file], title:'🎉 Promo Especial — Patagonia Salvaje' })
                 .catch(()=>{});
         } else {
             descargarFlyerAdmin();
-            setTimeout(() => window.open('https://wa.me/?text='+encodeURIComponent('🍺 ¡PROMO ESPECIAL en Patagonia Salvaje!\nOfertas en cervezas solo esta noche 🕙\n🛒 https://patagonia-salvaje.vercel.app'),'_blank'), 800);
+            setTimeout(() => window.open('https://wa.me/?text='+encodeURIComponent('🔥 ¡PROMOS ESPECIALES en Patagonia Salvaje!\n🏔️ Frente al Llao Llao · Bariloche\n🛒 https://patagonia-salvaje.vercel.app'),'_blank'), 800);
         }
     },'image/png');
 }
@@ -9400,6 +9472,8 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
 
     // 5. Toast, cierre de modales y limpieza
     mostrarToast(`✅ Fiado de ${datosFiado.cliente} registrado — $${Math.round(total).toLocaleString('es-AR')}`, 'naranja');
+    // Enviar comprobante WA si el cliente tiene teléfono
+    _enviarComprobanteVentaFiado(datosFiado, itemsSnapshot, total, ticketNum);
     seleccionarMetodo('efectivo');
     actualizarRanking();
     renderVenta();
@@ -9958,7 +10032,175 @@ async function ejecutarResetTotal() {
     }
 }
 
+
+// ══════════════════════════════════════════════
+// MODAL HORARIO LOCAL
+// ══════════════════════════════════════════════
+let _horarioData = [];
+
+async function abrirModalHorario() {
+    document.getElementById('modalHorarioLocal').style.display = 'flex';
+    document.getElementById('horarioLoadingMsg').style.display = 'block';
+    document.getElementById('horarioTabla').style.display = 'none';
+    document.getElementById('horarioSaveMsg').textContent = '';
+    try {
+        const url = API_URL + '?action=getHorarioLocal&t=' + Date.now();
+        const r = await fetch(url, { redirect:'follow', signal: AbortSignal.timeout(10000) });
+        const d = await r.json();
+        if (!d.ok || !d.horarios) throw new Error(d.error || 'sin datos');
+        _horarioData = d.horarios;
+        _renderTablaHorario(d.horarios);
+    } catch(e) {
+        // Si falla la API, mostrar tabla con defaults editables
+        _horarioData = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'].map(dia => ({ dia, apertura: 9, cierre: 22 }));
+        _renderTablaHorario(_horarioData);
+        document.getElementById('horarioSaveMsg').style.color = '#f9a825';
+        document.getElementById('horarioSaveMsg').textContent = '⚠️ Sin conexión — editá y guardá de todos modos';
+    }
+}
+
+function _renderTablaHorario(horarios) {
+    const tbody = document.getElementById('horarioTbody');
+    tbody.innerHTML = horarios.map((h, i) => `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.07);">
+            <td style="padding:8px 6px;color:#e0e0e0;font-weight:700;">${h.dia}</td>
+            <td style="padding:8px 6px;text-align:center;">
+                <input type="number" min="0" max="23" value="${h.apertura}"
+                    id="hor_ap_${i}" style="width:52px;text-align:center;background:#0f0f1a;
+                    border:1.5px solid rgba(0,188,212,0.4);border-radius:8px;color:#fff;
+                    font-size:0.95rem;padding:5px;font-weight:700;">
+            </td>
+            <td style="padding:8px 6px;text-align:center;">
+                <input type="number" min="0" max="24" value="${h.cierre}"
+                    id="hor_ci_${i}" style="width:52px;text-align:center;background:#0f0f1a;
+                    border:1.5px solid rgba(0,188,212,0.4);border-radius:8px;color:#fff;
+                    font-size:0.95rem;padding:5px;font-weight:700;">
+            </td>
+        </tr>`).join('');
+    document.getElementById('horarioLoadingMsg').style.display = 'none';
+    document.getElementById('horarioTabla').style.display = 'table';
+}
+
+function cerrarModalHorario() {
+    document.getElementById('modalHorarioLocal').style.display = 'none';
+}
+
+async function guardarHorarios() {
+    const msg = document.getElementById('horarioSaveMsg');
+    msg.style.color = '#aaa'; msg.textContent = '⏳ Guardando...';
+    const dias = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
+    let errores = 0;
+    for (let i = 0; i < dias.length; i++) {
+        const ap = parseInt(document.getElementById('hor_ap_' + i)?.value) || 9;
+        const ci = parseInt(document.getElementById('hor_ci_' + i)?.value) || 22;
+        try {
+            const url = API_URL + '?action=setHorarioLocal&data=' + encodeURIComponent(JSON.stringify({ dia: dias[i], apertura: ap, cierre: ci })) + '&t=' + Date.now();
+            const r = await fetch(url, { redirect:'follow', signal: AbortSignal.timeout(8000) });
+            const d = await r.json();
+            if (!d.ok) errores++;
+        } catch(e) { errores++; }
+    }
+    if (errores === 0) {
+        msg.style.color = '#52e88a';
+        msg.textContent = '✅ Horarios guardados correctamente';
+        setTimeout(() => cerrarModalHorario(), 1500);
+    } else {
+        msg.style.color = '#f9a825';
+        msg.textContent = `⚠️ ${errores} día(s) sin guardar — revisá la conexión`;
+    }
+}
+
+// ══════════════════════════════════════════════
+// PROVEEDOR — WA DIRECTO SIN MENSAJE (solo abre)
+// ══════════════════════════════════════════════
+// Sobreescribe probarWAProveedor para ir directo sin texto predeterminado
+function probarWAProveedor(idx) {
+    const p = configProveedores[idx]; if (!p) return;
+    const tel = (p.telefono || '').replace(/\D/g, '');
+    if (!tel) { mostrarToast('⚠️ Agregá el teléfono del proveedor primero', 'naranja'); return; }
+    window.open('https://wa.me/' + tel, '_blank');
+}
+
+// Sobreescribe enviarPedidoProveedor para ir directo sin mensaje
+function enviarPedidoProveedor() {
+    const cfg = getProveedorPanadero(); if (!cfg) {
+        mostrarToast('⚠️ Configurá un proveedor primero en ⚙️', 'naranja'); return;
+    }
+    const tel = (cfg.telefono || '').replace(/\D/g, '');
+    localStorage.setItem('pedido_ps_' + fechaArgentina(), '1');
+    const n = document.getElementById('sugerenciaProveedor'); if (n) n.remove();
+    if (tel) {
+        window.open('https://wa.me/' + tel, '_blank');
+    } else {
+        window.open('https://wa.me/', '_blank');
+        mostrarToast('⚠️ Agregá el teléfono del proveedor en ⚙️', 'naranja');
+    }
+}
+
+// ══════════════════════════════════════════════
+// FIADO — COMPROBANTE WA AL GUARDAR
+// ══════════════════════════════════════════════
+// Patch post-guardarFiado: enviar comprobante por WA si hay teléfono
+function _enviarComprobanteVentaFiado(datosFiado, items, total, ticketNum) {
+    if (!datosFiado.telefono) return; // sin tel no enviamos
+    const tel = String(datosFiado.telefono).replace(/\D/g,'');
+    if (!tel || tel.length < 8) return;
+
+    const fecha = new Date().toLocaleDateString('es-AR');
+    const hora  = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    const ticket = ticketNum ? ('#' + String(ticketNum).padStart(4,'0')) : '';
+
+    let lineas = items.map(i => {
+        const subtotal = Math.round(i.price * i.qty);
+        return `  • ${i.name}${i.qty > 1 ? ' x' + i.qty : ''} — $${subtotal.toLocaleString('es-AR')}`;
+    }).join('\n');
+
+    const msg = [
+        '🛒 *PATAGONIA SALVAJE*',
+        `📋 *Comprobante de Venta Fiada* ${ticket}`,
+        `📅 ${fecha} · ${hora}hs`,
+        '',
+        lineas,
+        '',
+        `💰 *TOTAL: $${Math.round(total).toLocaleString('es-AR')}*`,
+        '',
+        '⚠️ _Pendiente de pago_',
+        '✅ _Gracias por tu confianza, ' + datosFiado.cliente.split(' ')[0] + '!_',
+    ].join('\n');
+
+    // Pequeño delay para no interferir con el flujo
+    setTimeout(() => {
+        window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+    }, 600);
+}
+
 </script>
 
+
+<!-- ═══════════ MODAL HORARIO LOCAL ═══════════ -->
+<div id="modalHorarioLocal" onclick="if(event.target===this)cerrarModalHorario()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:9990;align-items:center;justify-content:center;">
+  <div style="background:#1a1a2e;border-radius:20px;width:92%;max-width:400px;padding:24px 20px;border:1.5px solid rgba(0,188,212,0.4);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div style="font-weight:900;font-size:1.05rem;color:#00bcd4;">🕐 Horario del local</div>
+      <button onclick="cerrarModalHorario()" style="background:none;border:none;color:#aaa;font-size:1.3rem;cursor:pointer;">✕</button>
+    </div>
+    <div id="horarioLoadingMsg" style="text-align:center;color:#aaa;font-size:0.82rem;padding:16px 0;">⏳ Cargando horarios...</div>
+    <table id="horarioTabla" style="display:none;width:100%;border-collapse:collapse;font-size:0.85rem;">
+      <thead>
+        <tr>
+          <th style="text-align:left;color:#aaa;font-size:0.72rem;padding:4px 6px;font-weight:600;">DÍA</th>
+          <th style="text-align:center;color:#aaa;font-size:0.72rem;padding:4px 6px;font-weight:600;">APERTURA</th>
+          <th style="text-align:center;color:#aaa;font-size:0.72rem;padding:4px 6px;font-weight:600;">CIERRE</th>
+        </tr>
+      </thead>
+      <tbody id="horarioTbody"></tbody>
+    </table>
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button onclick="guardarHorarios()" style="flex:1;padding:11px;border-radius:10px;border:none;background:#00838f;color:#fff;font-weight:800;font-size:0.88rem;cursor:pointer;">💾 Guardar</button>
+      <button onclick="cerrarModalHorario()" style="flex:1;padding:11px;border-radius:10px;border:none;background:#2a2a3e;color:#aaa;font-weight:700;font-size:0.88rem;cursor:pointer;">Cancelar</button>
+    </div>
+    <div id="horarioSaveMsg" style="text-align:center;font-size:0.78rem;min-height:18px;margin-top:8px;color:#52e88a;"></div>
+  </div>
+</div>
 </body>
 </html>
