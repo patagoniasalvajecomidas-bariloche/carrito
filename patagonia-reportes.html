@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Patagonia Salvaje · Reportes</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --v0:#b71c1c; --v1:#e64a19; --v2:#ff8f00; --v3:#66bb6a; --v4:#2e7d32; --v5:#1b5e20; --v6:#0a3d0f;
+  --verde:#2e7d32; --vd:#1b5e20; --vdp:#0a3d0f; --vl:#e8f5e9;
+  --naranja:#f57c00; --nl:#fff3e0;
+  --rojo:#c62828; --rl:#ffebee;
+  --azul:#1565c0; --al:#e3f2fd;
+  --morado:#6a1b9a; --ml:#f3e5f5;
+  --gris:#546e7a; --bg:#f1f8f1; --blanco:#fff; --borde:#c8e6c9; --texto:#1a2e1c;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100dvh}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,var(--vdp),var(--vd),var(--verde));padding:11px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(10,61,15,.4);position:sticky;top:0;z-index:100}
+.hdr-icon{font-size:1.5rem}
+.hdr-t{color:#fff;font-size:.95rem;font-weight:900}
+.hdr-s{color:rgba(255,255,255,.7);font-size:.62rem;letter-spacing:2px;text-transform:uppercase}
+.btn-back{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:20px;padding:5px 13px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center}
+
+/* LOADING */
+.ldg{text-align:center;padding:60px 20px;color:var(--gris)}
+.spin{width:34px;height:34px;border:3px solid var(--vl);border-top-color:var(--verde);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* PANEL SELECCIÓN */
+.sel-panel{margin:12px 12px 0;background:#fff;border-radius:18px;border:1px solid var(--borde);overflow:hidden;box-shadow:0 1px 6px rgba(46,125,50,.08)}
+.sel-titulo{background:linear-gradient(90deg,var(--vdp),var(--vd));color:#fff;padding:10px 16px;font-size:.82rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between}
+.sel-body{padding:12px 12px 14px}
+
+/* BOTÓN HOY — sticky top standard */
+.btn-hoy-top{display:flex;align-items:center;gap:8px;background:var(--naranja);color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:.88rem;font-weight:900;cursor:pointer;font-family:inherit;width:100%;margin-bottom:12px;justify-content:center;box-shadow:0 2px 8px rgba(245,124,0,.3);transition:all .15s}
+.btn-hoy-top:active{transform:scale(.97)}
+.btn-hoy-top.activo{background:var(--vd)}
+
+/* MES NAV */
+.mes-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;background:var(--vl);border-radius:12px;padding:8px 10px}
+.mes-nombre{font-size:1rem;font-weight:900;color:var(--vd)}
+.btn-mes{width:36px;height:36px;border:none;border-radius:50%;background:var(--verde);color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;box-shadow:0 2px 6px rgba(46,125,50,.3)}
+
+/* SECCIÓN JERÁRQUICA */
+.sel-sec{margin-bottom:8px}
+.sel-sec-lbl{font-size:.66rem;font-weight:900;color:var(--gris);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.sel-sec-lbl::before{content:'';display:block;width:3px;height:12px;background:var(--verde);border-radius:2px}
+
+/* SEMANAS */
+.sems-row{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px}
+.btn-sem{padding:7px 4px;border:1.5px solid var(--borde);border-radius:9px;background:#fff;font-size:.72rem;font-weight:800;cursor:pointer;color:var(--gris);font-family:inherit;text-align:center;transition:all .12s}
+.btn-sem:active,.btn-sem.activo{background:var(--verde);border-color:var(--vd);color:#fff}
+
+/* MESES FILA */
+.meses-row{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px}
+.btn-mes-sel{padding:8px 4px;border:1.5px solid var(--borde);border-radius:10px;background:#fff;font-size:.72rem;font-weight:700;cursor:pointer;color:var(--gris);font-family:inherit;text-align:center;transition:all .15s;line-height:1.3}
+.btn-mes-sel.tiene{background:var(--vl);border-color:var(--verde);color:var(--vd)}
+.btn-mes-sel.activo{background:var(--vd);border-color:var(--vdp);color:#fff}
+.btn-mes-sel.sin{opacity:.4}
+
+/* AÑOS ANTERIORES colapsable */
+.anios-wrap{margin-bottom:10px}
+.btn-anio-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--vl);border:1.5px solid var(--borde);border-radius:10px;padding:8px 12px;font-size:.78rem;font-weight:800;color:var(--vd);cursor:pointer;font-family:inherit;transition:all .12s}
+.btn-anio-toggle:active{background:var(--verde);color:#fff}
+.anio-panel{margin-top:5px;background:#f9fdf9;border:1.5px solid var(--borde);border-radius:10px;padding:10px;display:none}
+.anio-panel.open{display:block}
+.anio-titulo{font-size:.72rem;font-weight:900;color:var(--gris);margin-bottom:6px;text-transform:uppercase;letter-spacing:.8px}
+.anio-meses-row{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
+
+/* CHIPS */
+.chips-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{padding:6px 12px;border:2px solid var(--borde);border-radius:20px;background:#fff;font-size:.76rem;font-weight:700;cursor:pointer;color:var(--gris);font-family:inherit;transition:all .15s;white-space:nowrap}
+.chip.activo{background:var(--vd);border-color:var(--vd);color:#fff}
+.chip.ven.activo{background:var(--azul);border-color:var(--azul)}
+.chip-limpiar{background:var(--rl);border-color:var(--rojo);color:var(--rojo)}
+.chip-limpiar:active{background:var(--rojo);color:#fff}
+
+/* LABEL SECCIÓN */
+.lbl{font-size:.68rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px;margin-top:10px}
+
+/* CALENDARIO */
+.cal{background:var(--vl);border-radius:14px;overflow:hidden;margin-bottom:10px;border:1px solid var(--borde)}
+.cal-meses{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+.cal-mes-btn{padding:8px 4px;border:1px solid var(--borde);border-radius:10px;background:#fff;font-size:.72rem;font-weight:700;cursor:pointer;color:var(--gris);font-family:inherit;text-align:center;transition:all .15s}
+.cal-mes-btn.sel{background:var(--vl);border-color:var(--verde);color:var(--vd)}
+.cal-mes-btn.activo{background:var(--verde);color:#fff;border-color:var(--vd)}
+.cal-sem{display:grid;grid-template-columns:repeat(7,1fr);background:var(--verde);padding:4px 0}
+.cal-dn{text-align:center;padding:4px 2px;font-size:.63rem;font-weight:700;color:rgba(255,255,255,.85);text-transform:uppercase}
+.cal-dias{display:grid;grid-template-columns:repeat(7,1fr);background:var(--vl);gap:0;padding:3px}
+.cal-d{border:1px solid transparent;border-radius:9px;margin:2px;padding:4px 1px;text-align:center;cursor:pointer;transition:all .12s;min-height:52px;display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(255,255,255,.7)}
+.cal-d.vacio{cursor:default;background:transparent;border:none}
+.cal-d.tiene{background:#fff;border-color:var(--borde)}
+.cal-d.sel{background:var(--vd) !important;border-color:var(--vdp) !important}
+.cal-d.sel .dn{color:#fff !important;background:transparent !important}
+.cal-d.sel .dm{color:rgba(255,255,255,.85) !important}
+.cal-d.sel .dg{color:rgba(255,200,100,.9) !important}
+.cal-d.hoy .dn{background:var(--naranja);color:#fff;border-radius:50%;width:21px;height:21px;display:flex;align-items:center;justify-content:center}
+.dn{font-size:.8rem;font-weight:700;color:var(--texto);line-height:1}
+.dm{font-size:.57rem;font-weight:700;color:var(--vd);line-height:1}
+.dg{font-size:.53rem;font-weight:700;color:var(--naranja);line-height:1}
+.dpunto{width:4px;height:4px;border-radius:50%;background:var(--naranja);margin-top:1px}
+.cal-d.hoy-label{position:relative}
+
+/* PROD ROW clickeable - todos los hijos ignoran pointer para que el click llegue al padre */
+.prod-clickable{cursor:pointer;-webkit-tap-highlight-color:rgba(46,125,50,.15)}
+.prod-clickable *{pointer-events:none}
+.hoy-badge{position:absolute;top:-1px;right:-1px;background:var(--naranja);color:#fff;font-size:.45rem;font-weight:900;padding:1px 3px;border-radius:4px;line-height:1.2}
+
+/* BOTONES ACCIÓN */
+.acc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+.acc-grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.btn-acc{padding:7px 4px;border:1px solid var(--borde);border-radius:10px;background:#fff;font-size:.68rem;font-weight:700;cursor:pointer;color:var(--gris);font-family:inherit;text-align:center}
+.btn-acc:active{background:var(--vl)}
+.btn-acc.verde{background:var(--vl);border-color:var(--verde);color:var(--vd)}
+.btn-acc.naranja{background:var(--nl);border-color:var(--naranja);color:#e65100}
+
+/* SECCIÓN RESULTADOS */
+.resultados{padding:0 12px}
+
+/* CARDS */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.card{background:#fff;border-radius:14px;padding:12px;border:1px solid var(--borde)}
+.card.full{grid-column:1/-1}
+.card.verde-g{background:linear-gradient(135deg,var(--vdp),var(--verde));color:#fff;border:none}
+.card.nar-g{background:linear-gradient(135deg,#c62828,var(--naranja));color:#fff;border:none}
+.card.aprox{background:linear-gradient(135deg,#37474f,#546e7a);color:#fff;border:none}
+.card-lbl{font-size:.65rem;opacity:.8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.card-val{font-size:1.45rem;font-weight:900;line-height:1}
+.card-sub{font-size:.68rem;opacity:.75;margin-top:3px}
+.card-lbl2{font-size:.65rem;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.card-val2{font-size:1.45rem;font-weight:900;color:var(--vd)}
+.info-tag{display:inline-block;background:rgba(255,255,255,.2);border-radius:8px;padding:2px 6px;font-size:.62rem;margin-top:4px;cursor:pointer}
+
+/* TARJETA */
+.tar{background:#fff;border-radius:14px;border:1px solid var(--borde);padding:13px;margin-bottom:10px}
+.tar-t{font-size:.68rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.tar-t .ver-mas{background:var(--vl);border:none;border-radius:10px;padding:3px 8px;font-size:.65rem;font-weight:700;color:var(--vd);cursor:pointer;font-family:inherit}
+
+/* ROWS */
+.row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5}
+.row:last-child{border-bottom:none}
+.row-l{font-size:.83rem;color:var(--gris)}
+.row-v{font-weight:900;font-size:.88rem;color:var(--vd)}
+.row-pct{font-size:.68rem;color:var(--gris);background:var(--vl);padding:2px 6px;border-radius:10px;margin-left:5px}
+
+/* BARRAS PRODUCTO */
+.prod-row{margin-bottom:9px}
+.prod-hdr{display:flex;justify-content:space-between;margin-bottom:2px}
+.prod-n{font-size:.78rem;font-weight:700;color:var(--texto)}
+.prod-d{font-size:.72rem;color:var(--gris)}
+.barra-bg{background:var(--vl);border-radius:20px;height:6px}
+.barra-f{border-radius:20px;height:6px;transition:width .4s}
+.bar-v{background:linear-gradient(90deg,var(--vd),#66bb6a)}
+.bar-g{background:linear-gradient(90deg,var(--naranja),#ffd54f)}
+.bar-rojo{background:linear-gradient(90deg,var(--rojo),#ef9a9a)}
+
+/* GANANCIA COLORES */
+.gan-verde{color:var(--verde);font-weight:700}
+.gan-naranja{color:var(--naranja);font-weight:700}
+.gan-rojo{color:var(--rojo);font-weight:700;text-decoration:line-through}
+
+/* DÍAS SEMANA */
+.dsem-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.dsem-l{font-size:.76rem;font-weight:700;color:var(--gris);min-width:30px}
+.dsem-bg{flex:1;background:var(--vl);border-radius:20px;height:10px}
+.dsem-f{background:linear-gradient(90deg,var(--vd),#66bb6a);border-radius:20px;height:10px}
+.dsem-v{font-size:.72rem;font-weight:700;color:var(--vd);min-width:72px;text-align:right}
+
+/* HORAS */
+.hora-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}
+.hora-cel{border-radius:6px;padding:4px 2px;text-align:center}
+.hora-n{font-size:.62rem;font-weight:700;color:var(--gris)}
+.hora-b{height:28px;border-radius:4px;margin-top:2px}
+
+/* VENCIMIENTOS */
+.venc-i{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5}
+.venc-i:last-child{border-bottom:none}
+.venc-n{font-size:.8rem;font-weight:600}
+.venc-n.vencido-text{color:var(--rojo);text-decoration:line-through}
+.badge{font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.bg-r{background:var(--rl);color:var(--rojo)}
+.bg-o1{background:#fbe9e7;color:#bf360c}
+.bg-o2{background:var(--nl);color:#e65100}
+.bg-g3{background:#e8f5e9;color:#2e7d32}
+.bg-g4{background:#c8e6c9;color:#1b5e20}
+.bg-g5{background:#a5d6a7;color:#0a3d0f}
+
+/* SEMÁFORO STOCK */
+.stk-0{color:var(--v0);font-weight:700}
+.stk-1{color:var(--v1);font-weight:700}
+.stk-2{color:var(--v2);font-weight:700}
+.stk-3{color:var(--v3);font-weight:700}
+.stk-4{color:var(--v4);font-weight:700}
+.stk-5{color:var(--v5);font-weight:700}
+.stk-off{text-decoration:line-through;opacity:.6}
+
+/* COMPARAR MESES */
+.comp-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.comp-l{font-size:.75rem;font-weight:700;color:var(--gris);min-width:48px}
+.comp-bars{flex:1;display:flex;flex-direction:column;gap:3px}
+.comp-bg{background:#f5f5f5;border-radius:20px;height:9px}
+.comp-f{border-radius:20px;height:9px}
+.comp-v{min-width:78px;text-align:right}
+.comp-vt{font-size:.7rem;font-weight:700;color:var(--vd)}
+.comp-vg{font-size:.63rem;color:var(--naranja)}
+
+/* DETALLE */
+.dd{background:#fff;border-radius:12px;border:1px solid var(--borde);margin-bottom:7px;overflow:hidden}
+.dd-hdr{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:var(--vl);cursor:pointer}
+.dd-f{font-weight:700;font-size:.85rem}
+.dd-r{text-align:right}
+.dd-body{padding:8px 12px;display:none;border-top:1px solid var(--borde)}
+.dd-body.open{display:block}
+.tkt{background:#f9faf9;border-radius:8px;padding:7px;margin-bottom:5px}
+.tkt-fiado{background:#fff8e1;border-left:3px solid var(--naranja) !important;}
+.tkt-hdr{display:flex;justify-content:space-between;margin-bottom:4px;font-size:.7rem;color:var(--gris)}
+.vi{display:flex;justify-content:space-between;padding:3px 0;font-size:.76rem;border-bottom:1px solid #f5f5f5;color:var(--gris)}
+.vi:last-child{border-bottom:none}
+.vtag{font-size:.62rem;background:var(--al);color:var(--azul);padding:1px 5px;border-radius:8px;font-weight:700;margin-left:3px}
+.mtag{font-size:.62rem;background:var(--ml);color:var(--morado);padding:1px 5px;border-radius:8px;font-weight:700}
+
+.empty{text-align:center;padding:24px;color:#bbb;font-size:.82rem}
+.pb{padding-bottom:28px}
+.seccion-sep{height:12px}
+/* TABLA DETALLE PRODUCTOS x DÍAS */
+.pdias-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px}
+.pdias-table{border-collapse:collapse;font-size:.7rem;min-width:100%}
+.pdias-table th{background:#fff;font-weight:700;white-space:nowrap;padding:5px 4px;border-bottom:2px solid var(--borde);color:var(--gris);font-size:.6rem;letter-spacing:.5px}
+.pdias-table th.col-prod{position:sticky;left:0;z-index:3;text-align:left;min-width:160px;background:#fff}
+.pdias-table th.col-tot{position:sticky;right:0;z-index:3;background:#fff;border-left:2px solid var(--borde)}
+.pdias-table td{padding:2px 2px;border-bottom:1px solid #f0f0f0;text-align:center;white-space:nowrap;vertical-align:middle}
+.pdias-table td.col-prod{position:sticky;left:0;background:#fff;text-align:left;font-weight:700;font-size:.71rem;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.pdias-table td.col-tot{position:sticky;right:0;background:#fff;font-weight:900;color:var(--vd);border-left:2px solid var(--borde)}
+.pdias-table tr:hover td{background:#f5fbf5 !important}
+.pdias-qty{display:inline-block;min-width:14px;padding:1px 2px;border-radius:4px;font-weight:700;font-size:.58rem}
+.pdias-qty.q0{color:#ddd}
+.pdias-qty.q1{background:#e8f5e9;color:#388e3c}
+.pdias-qty.q2{background:#c8e6c9;color:#2e7d32}
+.pdias-qty.q3{background:#a5d6a7;color:#1b5e20}
+.pdias-qty.q4{background:#66bb6a;color:#fff}
+.pdias-qty.q5{background:#2e7d32;color:#fff}
+/* ganancia x dias — escala naranja */
+.gd-qty{display:inline-block;min-width:14px;padding:1px 2px;border-radius:4px;font-weight:700;font-size:.54rem}
+.gd-qty.q0{color:#ddd}
+.gd-qty.q1{background:#fff3e0;color:#e65100}
+.gd-qty.q2{background:#ffe0b2;color:#e65100}
+.gd-qty.q3{background:#ffb74d;color:#fff}
+.gd-qty.q4{background:#fb8c00;color:#fff}
+.gd-qty.q5{background:#e65100;color:#fff}
+.pdias-th-dia{text-align:center;padding:2px 2px !important}
+.dia-n{display:block;font-weight:900;font-size:.58rem;color:var(--texto)}
+.dia-dow{display:block;color:var(--gris);font-size:.48rem;line-height:1}
+.hoy-col .dia-n{background:var(--naranja);color:#fff;border-radius:8px;padding:1px 4px}
+
+.toggle-btn{width:100%;padding:9px;border:2px solid var(--borde);border-radius:12px;background:#fff;font-size:.78rem;font-weight:700;color:var(--gris);cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px}
+.toggle-btn:active{background:var(--vl)}
+
+/* MODAL PRODUCTO */
+.mprod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end}
+.mprod-overlay.open{display:flex}
+.mprod-sheet{background:#fff;border-radius:22px 22px 0 0;width:100%;max-height:88dvh;overflow-y:auto;padding:0 0 32px}
+.mprod-drag{width:40px;height:4px;background:#e0e0e0;border-radius:2px;margin:12px auto 0}
+.mprod-hdr{padding:14px 16px 10px;border-bottom:1px solid var(--borde);position:sticky;top:0;background:#fff;z-index:1}
+.mprod-nombre{font-size:.92rem;font-weight:900;color:var(--texto);margin-bottom:2px}
+.mprod-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mprod-chip{padding:4px 10px;border-radius:20px;font-size:.68rem;font-weight:700}
+.mprod-body{padding:12px 16px}
+.mprod-stat{display:flex;gap:8px;margin-bottom:12px}
+.mprod-card{flex:1;background:var(--vl);border-radius:12px;padding:8px 10px;text-align:center}
+.mprod-card.naranja{background:var(--nl)}
+.mprod-card.gris{background:#f5f5f5}
+.mprod-clbl{font-size:.58rem;color:var(--gris);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.mprod-cval{font-size:1rem;font-weight:900;color:var(--vd)}
+.mprod-cval.nar{color:var(--naranja)}
+.mprod-sec{font-size:.65rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid #f0f0f0}
+.mprod-ticket{background:#f9faf9;border-radius:10px;padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--verde)}
+.mprod-trow{display:flex;justify-content:space-between;align-items:center;font-size:.75rem}
+.mprod-fecha{color:var(--gris);font-size:.68rem;margin-top:2px}
+
+/* ===== COMPRA SUGERIDA INTELIGENTE ===== */
+.csi-resumen{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px}
+.csi-stat{background:#fff;border:1px solid var(--borde);border-radius:10px;padding:8px 4px;text-align:center}
+.csi-stat-v{font-size:1.25rem;font-weight:900;color:var(--vd);line-height:1}
+.csi-stat-l{font-size:.56rem;color:var(--gris);margin-top:2px;line-height:1.3}
+.csi-sem .csi-stat-v{color:var(--azul)}
+.csi-men .csi-stat-v{color:var(--verde)}
+.csi-esp .csi-stat-v{color:var(--morado)}
+.csi-rea .csi-stat-v{color:var(--naranja)}
+.csi-tabla-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -2px}
+.csi-tabla{border-collapse:collapse;font-size:.7rem;min-width:100%}
+.csi-tabla th{background:#fff;font-weight:700;white-space:nowrap;padding:5px 4px;border-bottom:2px solid var(--borde);color:var(--gris);font-size:.6rem;letter-spacing:.5px;text-align:center}
+.csi-tabla th.csi-col-prod{position:sticky;left:0;z-index:4;text-align:left;min-width:160px;background:#fff}
+.csi-tabla td{padding:4px;border-bottom:1px solid #f0f0f0;vertical-align:middle;white-space:nowrap}
+.csi-tabla td.csi-col-prod{position:sticky;left:0;background:#fff;font-weight:600;font-size:.71rem;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.csi-tabla tr:hover td{background:#f5fbf5!important}
+.csi-qty{display:inline-block;background:var(--vd);color:#fff;font-weight:900;font-size:.78rem;padding:2px 8px;border-radius:8px;min-width:28px;text-align:center}
+.csi-badge-dia{background:#f3e5f5;color:#4a148c}
+.csi-badge-sem{background:var(--al);color:var(--azul)}
+.csi-badge-men{background:var(--vl);color:var(--vd)}
+.csi-badge-esp{background:var(--ml);color:var(--morado)}
+.csi-badge-rea{background:var(--nl);color:#e65100}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-icon">🏪</div>
+  <div><div class="hdr-t">Patagonia Salvaje</div><div class="hdr-s">Reportes</div></div>
+  <a href="seba21.html" class="btn-back">← Volver</a>
+</div>
+
+<div id="app"><div class="ldg"><div class="spin"></div>Cargando reportes...</div></div>
+
+<script>
+const API_URL='https://script.google.com/macros/s/AKfycbw4uaR6IgUrl63JB_GCgZFWhRfLCcTUxhDYOtJJFUK4aTwN8PiF4fomibiOnOEXZFzE/exec';
+const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEM=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const EXCLUIR_VENDEDORES=['DIEGO','DIEGO REAL']; // no aparecen en reportes
+const normVend=v=>(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase();
+
+let raw=null;
+let _topNombres=[]; // nombres top venta para tap seguro
+let _topGanNombres=[]; // nombres top ganancia para tap seguro
+let mes=new Date().getMonth(), anio=new Date().getFullYear();
+let diasSel=new Set();
+let modoNav='mes'; // 'mes' | 'anio'
+let aniosAbiertos=new Set(); // años anteriores expandidos en el selector
+let metActivos=new Set(['TODOS']);
+let vendActivos=new Set(['TODOS']);
+let topOrden='venta'; // 'venta' | 'ganancia'
+let showVenc=false, showDiaSem=false, showHoras=false, showPDias=false, showGanDias=false;
+let prodSelIdx=-1; // índice del producto seleccionado en el top (-1 = ninguno)
+// ===== COMPRA SUGERIDA INTELIGENTE — estado =====
+let showCSI=false, csiFiltroPeriodo='todos';
+let showRecienLlegados=false;
+
+// safeEnc: encodeURIComponent seguro — evita URIError si el nombre tiene
+// caracteres Unicode inválidos (surrogates desparejados) cargados desde Sheets
+function safeEnc(s){
+  try{ return encodeURIComponent(s); }
+  catch(e){ return encodeURIComponent(String(s).replace(/[\uD800-\uDFFF]/g,'?')); }
+}
+
+// extractFiadoPhone: extrae el teléfono del campo metodo para tickets de fiado
+// Ej: "FIADO | ◆ NICO · 2944123248" → "5492944123248"
+function extractFiadoPhone(metodo){
+  if(!(metodo||'').toUpperCase().includes('FIADO')) return '';
+  const m=(metodo||'').match(/(\d{6,})\s*$/);
+  if(!m) return '';
+  const d=m[1];
+  // Argentina: número de 10 dígitos → prefijo 549 (54 país + 9 móvil)
+  if(d.length===10) return '549'+d;
+  if(d.length>=11) return d; // ya tiene prefijo
+  return '';
+}
+
+// sanitizeMetodoWA: limpia el campo metodo para incluirlo en mensaje WA
+// Reemplaza caracteres Unicode decorativos que pueden corromper la URL en WA Business
+function sanitizeMetodoWA(metodo){
+  return (metodo||'')
+    .replace(/◆/g,'-')
+    .replace(/·/g,'-')
+    .replace(/[^\x20-\x7E\u00C0-\u024F\u00A0\n]/g,' ')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+}
+
+const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
+const hoyStr=()=>{const h=new Date();return h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');};
+
+// ====== INIT ======
+async function init(){
+  try{
+    const r=await fetch(API_URL+'?action=getReportes',{redirect:'follow',signal:AbortSignal.timeout(20000)});
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    raw=d;
+    // Seleccionar hoy solo si el mes visible es el mes actual
+    const hoy=new Date();
+    if(mes===hoy.getMonth()&&anio===hoy.getFullYear()) diasSel.add(hoyStr());
+  }catch(e){
+    document.getElementById('app').innerHTML='<div class="ldg" style="color:#c62828">❌ '+e.message+'</div>';
+    return;
+  }
+  // renderApp separado: si hay un error de render no mata el mensaje de error de red
+  try{ renderApp(); }catch(e){
+    document.getElementById('app').innerHTML='<div class="ldg" style="color:#c62828">❌ Error al mostrar datos: '+e.message+'</div>';
+  }
+}
+
+// ====== FILTRAR ======
+function getDiasMes(){
+  const n=new Date(anio,mes+1,0).getDate();
+  return Array.from({length:n},(_,i)=>anio+'-'+String(mes+1).padStart(2,'0')+'-'+String(i+1).padStart(2,'0'));
+}
+
+function filtrar(dias){
+  const set=new Set(dias);
+  const its=raw.items.filter(v=>set.has(v.fechaStr));
+  const tots=raw.totales.filter(v=>set.has(v.fechaStr));
+  // Excluir vendedores
+  const totsF=tots.filter(t=>!EXCLUIR_VENDEDORES.includes(normVend(t.vendedor||'')));
+  // Tickets válidos
+  let tksOk=new Set(totsF.map(t=>t.fechaStr+'_'+t.ticket));
+  if(!metActivos.has('TODOS')){
+    tksOk=new Set([...tksOk].filter(tk=>{
+      const [f,ti]=tk.split('_');
+      const tot=totsF.find(t=>t.fechaStr===f&&t.ticket===ti);
+      return tot&&Array.from(metActivos).some(m=>(tot.metodo||'').includes(m));
+    }));
+  }
+  if(!vendActivos.has('TODOS')){
+    tksOk=new Set([...tksOk].filter(tk=>{
+      const [f,ti]=tk.split('_');
+      const tot=totsF.find(t=>t.fechaStr===f&&t.ticket===ti);
+      // Comparar normalizando tildes
+      return tot&&[...vendActivos].some(va=>normVend(va)===normVend(tot.vendedor||''));
+    }));
+  }
+  return{
+    items: its.filter(i=>tksOk.has(i.fechaStr+'_'+i.ticket)),
+    totals: totsF.filter(t=>tksOk.has(t.fechaStr+'_'+t.ticket))
+  };
+}
+
+function calcStats(its,tots){
+  const venta=tots.reduce((s,t)=>s+(t.total||0),0);
+  let ganReal=0, ganAprox=0, itemsConCosto=0, itemsSinCosto=0;
+  its.forEach(i=>{
+    if(i.tieneCosto){ganReal+=(i.gananciaReal||0);itemsConCosto++;}
+    else itemsSinCosto++;
+    ganAprox+=(i.gananciaAprox||0);
+  });
+  const metodos={},vendedores={};
+  tots.forEach(t=>{
+    const m=(t.metodo||'EFECTIVO').toUpperCase();
+    metodos[m]=(metodos[m]||0)+(t.total||0);
+    // Normalizar vendedor para unificar "Sebastian" y "Sebastián"
+    const vRaw=t.vendedor||'Sin nombre';
+    const vKey=normVend(vRaw);
+    if(!vendedores[vKey])vendedores[vKey]={nombre:vRaw,total:0};
+    vendedores[vKey].total+=(t.total||0);
+    // unificar nombre display: usar el más corto (sin tilde) como canónico si ya existe
+    if(vendedores[vKey].nombre.length>vRaw.length)vendedores[vKey].nombre=vRaw;
+  });
+  const prods={};
+  its.forEach(i=>{
+    if(!i.nombre)return;
+    if(!prods[i.nombre])prods[i.nombre]={qty:0,total:0,ganReal:0,ganAprox:0,conCosto:false};
+    prods[i.nombre].qty+=i.qty||0;
+    prods[i.nombre].total+=i.subtotal||0;
+    prods[i.nombre].ganReal+=i.tieneCosto?(i.gananciaReal||0):0;
+    prods[i.nombre].ganAprox+=i.gananciaAprox||0;
+    if(i.tieneCosto)prods[i.nombre].conCosto=true;
+  });
+  const top=Object.entries(prods).sort((a,b)=>b[1].total-a[1].total).slice(0,15)
+    .map(([n,d])=>({nombre:n,qty:Math.round(d.qty),total:d.total,ganReal:d.ganReal,ganAprox:d.ganAprox,conCosto:d.conCosto}));
+  return{venta,ganReal,ganAprox,itemsConCosto,itemsSinCosto,metodos,vendedores,top,nTks:tots.length};
+}
+
+// ====== HELPERS ======
+function colorGan(g,v){
+  if(v===0)return'';
+  const pct=g/v*100;
+  if(pct<0)return'gan-rojo';
+  if(pct<10)return'gan-naranja';
+  return'gan-verde';
+}
+function badgeVenc(dias){
+  if(dias<0) return{cls:'bg-r',txt:'VENCIDO'};
+  if(dias<=3) return{cls:'bg-o1',txt:dias+'d'};
+  if(dias<=7) return{cls:'bg-o2',txt:dias+'d'};
+  if(dias<=14)return{cls:'bg-g3',txt:dias+'d'};
+  if(dias<=21)return{cls:'bg-g4',txt:dias+'d'};
+  return{cls:'bg-g5',txt:dias+'d'};
+}
+function clsStock(s){
+  if(s===0)return'stk-0 stk-off';
+  if(s===1)return'stk-1';
+  if(s===2)return'stk-2';
+  if(s===3)return'stk-3';
+  if(s<=6) return'stk-4';
+  if(s<=15)return'stk-5';
+  return'stk-5';
+}
+
+// ====== RENDER ======
+function renderApp(){
+  const diasArr=Array.from(diasSel);
+  const {items,totals}=filtrar(diasArr);
+  const stats=calcStats(items,totals);
+  const today=hoyStr();
+
+  // Datos mes (sin filtro método para calendario)
+  const {items:itM,totals:totM}=filtrar(getDiasMes());
+  const porDia={};
+  totM.forEach(t=>{if(!porDia[t.fechaStr])porDia[t.fechaStr]={tv:0,tg:0};porDia[t.fechaStr].tv+=t.total||0;});
+  itM.forEach(i=>{if(!porDia[i.fechaStr])porDia[i.fechaStr]={tv:0,tg:0};porDia[i.fechaStr].tg+=i.gananciaAprox||0;});
+
+  // Métodos disponibles
+  const metSet=new Set();raw.totales.forEach(t=>{if(t.metodo)metSet.add(t.metodo.toUpperCase());});
+  const metodos=[...metSet].sort();
+
+  // Vendedores disponibles (sin excluidos) — normalizados para evitar duplicados con/sin tilde
+  const vendMap=new Map(); // normKey → nombre display (primera aparición)
+  raw.totales.filter(t=>!EXCLUIR_VENDEDORES.includes(normVend(t.vendedor||'')))
+    .forEach(t=>{if(t.vendedor){const k=normVend(t.vendedor);if(!vendMap.has(k))vendMap.set(k,t.vendedor);}});
+  const vendedores=[...vendMap.values()].sort();
+
+  // Calendario
+  const primerDia=new Date(anio,mes,1).getDay();
+  const diasEnMes=new Date(anio,mes+1,0).getDate();
+  let calH='<div class="cal-sem">'+DIAS_SEM.map(d=>'<div class="cal-dn">'+d+'</div>').join('')+'</div><div class="cal-dias">';
+  for(let i=0;i<primerDia;i++) calH+='<div class="cal-d vacio"></div>';
+  for(let d=1;d<=diasEnMes;d++){
+    const ds=anio+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const info=porDia[ds];
+    const sel=diasSel.has(ds), esH=ds===today;
+    let cls='cal-d'+(info?' tiene':'')+(sel?' sel':'')+(esH?' hoy':'');
+    const monto=info?'<div class="dm">'+fmt(info.tv)+'</div>':'';
+    const gan=info?'<div class="dg">+'+fmt(info.tg)+'</div>':'';
+    const pto=(info&&!sel)?'<div class="dpunto"></div>':'';
+    const hoyLbl=esH&&!sel?'<div class="hoy-badge">HOY</div>':'';
+    calH+='<div class="'+cls+'" onclick="toggleDia(\''+ds+'\')" style="position:relative">'+hoyLbl+'<div class="dn">'+d+'</div>'+monto+gan+pto+'</div>';
+  }
+  calH+='</div>';
+
+  // Semanas del mes
+  const semNombres=['S1','S2','S3','S4','S5'];
+  const semsHTML=semNombres.map(s=>{
+    const n=parseInt(s[1]);
+    const ini=(n-1)*7+1, fin=Math.min(n*7,diasEnMes);
+    if(ini>diasEnMes)return'';
+    return'<button class="btn-acc" onclick="selSemana('+n+')">'+s+'</button>';
+  }).join('');
+
+  // Calendario de meses (modo año)
+  const calMesesH=MESES.map((nm,mi)=>{
+    const tieneData = raw && raw.totales.some(t=>t.fechaStr && t.fechaStr.startsWith(anio+'-'+String(mi+1).padStart(2,'0')));
+    const diasDelMes=[...diasSel].filter(d=>d.startsWith(anio+'-'+String(mi+1).padStart(2,'0')));
+    const esSel = diasDelMes.length > 0;
+    const cls = esSel ? 'cal-mes-btn activo' : tieneData ? 'cal-mes-btn sel' : 'cal-mes-btn';
+    return '<button class="'+cls+'" onclick="selMes('+mi+')">'+nm.substring(0,3)+(tieneData?'':'<br><span style="font-size:.55rem;opacity:.4">sin datos</span>')+'</button>';
+  }).join('');
+
+  // Filtros método
+  const fMetH='<div class="chips-wrap">'+
+    '<button class="chip'+(metActivos.has('TODOS')?' activo':'')+'" onclick="togMet(\'TODOS\')">📋 Todos</button>'+
+    metodos.map(m=>{const ic=m.includes('EFECTIVO')?'💵':m.includes('TRANSF')?'📱':m.includes('QR')?'📲':m.includes('POSNET')?'💳':'🔀';return'<button class="chip'+(metActivos.has(m)?' activo':'')+'" onclick="togMet(\''+m+'\')">'+ic+' '+m+'</button>';}).join('')+
+    '<button class="chip chip-limpiar" onclick="deselTodo()">✕ Limpiar</button>'+
+  '</div>';
+
+  // Filtros vendedor
+  const fVendH=vendedores.length>1?
+    '<div class="lbl">Vendedor</div><div class="chips-wrap">'+
+    '<button class="chip ven'+(vendActivos.has('TODOS')?' activo':'')+'" onclick="togVend(\'TODOS\')">👥 Todos</button>'+
+    vendedores.map(v=>'<button class="chip ven'+(vendActivos.has(normVend(v))?' activo':'')+'" onclick="togVend(\''+v+'\')">👤 '+v+'</button>').join('')+
+    '</div>':'';
+
+  // Cards
+  const pctG=stats.venta>0?Math.round(stats.ganReal/stats.venta*100):0;
+  const pctGA=stats.venta>0?Math.round(stats.ganAprox/stats.venta*100):0;
+  const cardsH=
+    '<div class="cards">'+
+    '<div class="card verde-g full"><div class="card-lbl">Ventas período</div><div class="card-val">'+fmt(stats.venta)+'</div><div class="card-sub">'+stats.nTks+' tickets · '+diasArr.length+' días</div></div>'+
+    '<div class="card nar-g"><div class="card-lbl">Ganancia real</div><div class="card-val">'+fmt(stats.ganReal)+'</div><div class="card-sub">'+pctG+'% · '+stats.itemsConCosto+' prod c/costo</div></div>'+
+    '<div class="card aprox"><div class="card-lbl">Ganancia aprox ★</div><div class="card-val">'+fmt(stats.ganAprox)+'</div><div class="card-sub">'+pctGA+'% estimado</div><div class="info-tag" onclick="alert(\'Estimado usando precio/1.5 como costo mínimo (comisión ~33%). Si tenés el costo cargado, usá la ganancia real.\')">ℹ️ ¿Cómo se calcula?</div></div>'+
+    '<div class="card"><div class="card-lbl2">Ticket promedio</div><div class="card-val2">'+fmt(stats.nTks>0?stats.venta/stats.nTks:0)+'</div></div>'+
+    '</div>';
+
+  // Métodos breakdown
+  const metRowsH=Object.entries(stats.metodos).sort((a,b)=>b[1]-a[1]).map(([m,t])=>{
+    const pct=stats.venta>0?Math.round(t/stats.venta*100):0;
+    return'<div class="row"><span class="row-l">'+m+'</span><span><strong class="row-v">'+fmt(t)+'</strong><span class="row-pct">'+pct+'%</span></span></div>';
+  }).join('');
+
+  // Vendedores
+  const vendRowsH=Object.values(stats.vendedores).sort((a,b)=>b.total-a.total).map(({nombre,total})=>{
+    const pct=stats.venta>0?Math.round(total/stats.venta*100):0;
+    return'<div class="row"><span class="row-l">👤 '+nombre+'</span><span><strong class="row-v">'+fmt(total)+'</strong><span class="row-pct">'+pct+'%</span></span></div>';
+  }).join('');
+
+    // Top productos — escala separada para cada barra
+  const stockMap={};
+  (raw.vencProximos||[]).forEach(v=>{ if(v.nombre) stockMap[v.nombre]=(stockMap[v.nombre]!==undefined?Math.min(stockMap[v.nombre],v.stock):v.stock); });
+  function stockBadge(nombre){
+    if(stockMap[nombre]===undefined) return '';
+    const s=stockMap[nombre];
+    const [bg,txt,lbl] = s===0?['#ffebee','#c62828','⚠️ Sin stock']:
+                         s<=2? ['#fff3e0','#e65100','⚠️ '+s+' und']:
+                         s<=5? ['#fffde7','#f57f17','📦 '+s+' und']:
+                               ['#e8f5e9','#2e7d32','📦 '+s+' und'];
+    return '<span style="font-size:.6rem;font-weight:700;background:'+bg+';color:'+txt+';padding:1px 7px;border-radius:20px;margin-left:4px">'+lbl+'</span>';
+  }
+  const maxV=stats.top.length?stats.top[0].total:1;
+  const maxG=Math.max(...stats.top.map(p=>p.conCosto?Math.max(p.ganReal,0):p.ganAprox),1);
+  _topNombres = stats.top.map(p=>p.nombre);
+
+  // Función helper: 30 días de un producto expandido
+  function prod30H(nombre){
+    const todayStr=hoyStr();
+    const DOW=['D','L','M','X','J','V','S'];
+    const dias30=[];
+    for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dias30.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));}
+    const ventas={};
+    (raw?raw.items:[]).filter(it=>it.nombre===nombre&&dias30.includes(it.fechaStr))
+      .forEach(it=>{ventas[it.fechaStr]=(ventas[it.fechaStr]||0)+it.qty;});
+    const maxQ=Math.max(...Object.values(ventas),1);
+    const celdas=dias30.map(ds=>{
+      const q=ventas[ds]||0;
+      const qr=Math.round(q*10)/10;
+      const nivel=q===0?0:q<=maxQ*.2?1:q<=maxQ*.4?2:q<=maxQ*.6?3:q<=maxQ*.8?4:5;
+      const d=new Date(ds+'T12:00:00');
+      const esHoy=ds===todayStr;
+      return'<div style="display:flex;flex-direction:column;align-items:center;gap:1px;min-width:22px">'+
+        '<span style="font-size:.52rem;color:'+(esHoy?'var(--naranja)':'var(--gris)')+';font-weight:'+(esHoy?900:400)+'">'+d.getDate()+'</span>'+
+        '<span style="font-size:.55rem;color:var(--gris)">'+DOW[d.getDay()]+'</span>'+
+        '<span class="pdias-qty q'+nivel+'" style="font-size:.62rem">'+(q===0?'·':qr)+'</span>'+
+      '</div>';
+    }).join('');
+    const tot=Object.values(ventas).reduce((s,v)=>s+v,0);
+    return '<div style="background:var(--vl);border-radius:10px;padding:8px;margin-top:6px">'+
+      '<div style="font-size:.62rem;color:var(--gris);font-weight:700;margin-bottom:5px">📊 Últimos 30 días · Total: '+Math.round(tot*10)/10+' u</div>'+
+      '<div style="display:flex;gap:3px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px">'+celdas+'</div>'+
+    '</div>';
+  }
+
+  const topsH=stats.top.length?stats.top.map((p,i)=>{
+    const pctV=Math.round(p.total/maxV*100);
+    const gan=p.conCosto?p.ganReal:p.ganAprox;
+    const ganPos=Math.max(gan,0);
+    const pctG=Math.round(ganPos/maxG*100);
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    const ganCls=colorGan(gan,p.total);
+    const barGCls=p.conCosto&&gan<0?'bar-rojo':'bar-g';
+    const etiqueta=p.conCosto?fmt(gan):'~'+fmt(gan);
+    const sel=prodSelIdx===i&&topOrden==='venta';
+    return'<div style="border-radius:10px;padding:6px;margin-bottom:4px;background:'+(sel?'var(--vl)':'transparent')+';border:1px solid '+(sel?'var(--verde)':'transparent')+'">'+
+      '<button onclick="prodSelIdx='+(sel?-1:i)+';renderApp()" style="width:100%;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;text-align:left">'+
+        '<div class="prod-hdr"><span class="prod-n">'+medal+' '+p.nombre.substring(0,28)+'</span><span class="prod-d">'+p.qty+' u</span></div>'+
+        stockBadge(p.nombre)+
+        '<div style="display:flex;gap:3px;align-items:center;margin-bottom:2px;"><div class="barra-bg" style="flex:1"><div class="barra-f bar-v" style="width:'+pctV+'%"></div></div><span style="font-size:.68rem;font-weight:700;color:var(--vd);min-width:60px;text-align:right">'+fmt(p.total)+'</span></div>'+
+        '<div style="display:flex;gap:3px;align-items:center;"><div class="barra-bg" style="flex:1"><div class="barra-f '+barGCls+'" style="width:'+pctG+'%"></div></div><span class="'+ganCls+'" style="font-size:.65rem;min-width:60px;text-align:right">'+etiqueta+'</span></div>'+
+      '</button>'+
+      (sel?prod30H(p.nombre):'')+
+    '</div>';
+  }).join(''):'<div class="empty">Sin datos para la selección</div>';
+
+  // Top por GANANCIA
+  const topGananciaArr=[...stats.top]
+    .map(p=>({...p,ganancia:p.conCosto?p.ganReal:p.ganAprox}))
+    .filter(p=>p.ganancia>0)
+    .sort((a,b)=>b.ganancia-a.ganancia);
+  _topGanNombres = topGananciaArr.map(p=>p.nombre);
+  const maxGanRank=topGananciaArr.length?topGananciaArr[0].ganancia:1;
+  const topGanH=topGananciaArr.length?topGananciaArr.map((p,i)=>{
+    const pct=Math.round(p.ganancia/maxGanRank*100);
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+    const esReal=p.conCosto;
+    const etiqueta=(esReal?'':'~')+fmt(p.ganancia);
+    const sel=prodSelIdx===i&&topOrden==='ganancia';
+    return'<div style="border-radius:10px;padding:6px;margin-bottom:4px;background:'+(sel?'var(--nl)':'transparent')+';border:1px solid '+(sel?'var(--naranja)':'transparent')+'">'+
+      '<button onclick="prodSelIdx='+(sel?-1:i)+';renderApp()" style="width:100%;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;text-align:left">'+
+        '<div class="prod-hdr"><span class="prod-n">'+medal+' '+p.nombre.substring(0,28)+'</span><span class="prod-d" style="color:'+(esReal?'var(--naranja)':'var(--vd)')+';font-weight:900">'+etiqueta+(esReal?'':' ★')+'</span></div>'+
+        stockBadge(p.nombre)+
+        '<div style="display:flex;gap:3px;align-items:center;">'+
+          '<div class="barra-bg" style="flex:1"><div class="barra-f" style="width:'+pct+'%;background:'+(esReal?'var(--naranja)':'#a5d6a7')+'"></div></div>'+
+          '<span style="font-size:.65rem;color:var(--gris);min-width:60px;text-align:right">'+p.qty+' u · '+fmt(p.total)+'</span>'+
+        '</div>'+
+      '</button>'+
+      (sel?prod30H(p.nombre):'')+
+    '</div>';
+  }).join(''):'<div class="empty">Sin datos de ganancia en el período</div>';
+
+    // Mejores días
+  const mejoresDias=Object.entries(
+    [...diasSel].reduce((acc,ds)=>{
+      const {totals:td}=filtrar([ds]);
+      acc[ds]=td.reduce((s,t)=>s+(t.total||0),0);
+      return acc;
+    },{})
+  ).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const mejDiasH=mejoresDias.length?mejoresDias.map(([ds,t],idx)=>{
+    const [a,m,d]=ds.split('-');
+    const dw=new Date(ds+'T12:00:00').getDay();
+    const dnm=DIAS_SEM[dw];
+    const mesNom=MESES[parseInt(m)-1].substring(0,3);
+    const esHoy=ds===hoyStr();
+    const bgColor=idx===0?'background:var(--vl);border-radius:8px;padding:2px 6px;':'';
+    return'<div class="row"><span class="row-l" style="'+bgColor+'">'+
+      '<strong style="color:var(--vd);min-width:30px;display:inline-block">'+dnm+'</strong> '+
+      '<span style="color:var(--texto)">'+parseInt(d)+' '+mesNom+'</span>'+
+      (esHoy?' <span style="background:var(--naranja);color:#fff;font-size:.58rem;padding:1px 4px;border-radius:4px">HOY</span>':'')+
+    '</span><strong class="row-v">'+fmt(t)+'</strong></div>';
+  }).join(''):'<div class="empty">Seleccioná días para ver el ranking</div>';
+
+  // Por día de semana — totales y fechas con ventas reales
+  const porDSem={0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+  const ventasPorFechaDSem={0:{},1:{},2:{},3:{},4:{},5:{},6:{}}; // dw → {fecha: total}
+  totals.forEach(t=>{
+    if(!t.fechaStr)return;
+    const dw=new Date(t.fechaStr+'T12:00:00').getDay();
+    porDSem[dw]+=(t.total||0);
+    ventasPorFechaDSem[dw][t.fechaStr]=(ventasPorFechaDSem[dw][t.fechaStr]||0)+(t.total||0);
+  });
+  const maxDSem=Math.max(...Object.values(porDSem),1);
+  const dSemH=DIAS_SEM.map((n,i)=>{
+    const pct=Math.round(porDSem[i]/maxDSem*100);
+    const fechasConVenta=Object.entries(ventasPorFechaDSem[i]).sort((a,b)=>a[0].localeCompare(b[0]));
+    const fechasHTML=fechasConVenta.map(([ds,tv])=>{
+      const[a,m,d]=ds.split('-');
+      const mesNom=MESES[parseInt(m)-1].substring(0,3);
+      const esHoy=ds===hoyStr();
+      return'<span style="display:inline-block;background:'+(esHoy?'var(--naranja)':'var(--vl)')+';color:'+(esHoy?'#fff':'var(--vd)')+';border-radius:6px;padding:1px 6px;font-size:.62rem;font-weight:700;margin:1px">'+
+        parseInt(d)+' '+mesNom+(esHoy?' HOY':'')+
+      '</span>';
+    }).join('');
+    return'<div style="margin-bottom:8px;">'+
+      '<div class="dsem-row" style="margin-bottom:3px"><span class="dsem-l">'+n+'</span><div class="dsem-bg"><div class="dsem-f" style="width:'+pct+'%"></div></div><span class="dsem-v">'+fmt(porDSem[i])+'</span></div>'+
+      (fechasConVenta.length?'<div style="padding-left:38px;flex-wrap:wrap;display:flex;gap:2px">'+fechasHTML+'</div>':
+      '<div style="padding-left:38px;font-size:.62rem;color:#bbb">sin ventas</div>')+
+    '</div>';
+  }).join('');
+
+  // Horas — contar tickets por hora (flujo de personas)
+  const tksPorHora={};
+  totals.forEach(t=>{
+    if(!t.hora)return;
+    const h=parseInt(t.hora.split(':')[0]);
+    if(!isNaN(h))tksPorHora[h]=(tksPorHora[h]||0)+1;
+  });
+  const horasOrdenadas=Object.entries(tksPorHora).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
+  const maxTks=Math.max(...Object.values(tksPorHora),1);
+
+  // Detectar rango pico: hora con más tickets + rango ±1h alrededor
+  let rangoInicio=null, rangoFin=null, mejorH=null, mejorBloqueCnt=0;
+  if(horasOrdenadas.length){
+    // Hora con máximo tráfico
+    const [hMax,tMax]=horasOrdenadas.reduce((best,cur)=>cur[1]>best[1]?cur:best);
+    mejorH=parseInt(hMax);
+    // Expandir mientras horas contiguas tengan >40% del max
+    const hSet=new Set(horasOrdenadas.map(([h])=>parseInt(h)));
+    let ini=mejorH, fin=mejorH;
+    while(hSet.has(ini-1)&&(tksPorHora[ini-1]||0)>=maxTks*0.4) ini--;
+    while(hSet.has(fin+1)&&(tksPorHora[fin+1]||0)>=maxTks*0.4) fin++;
+    rangoInicio=ini; rangoFin=fin;
+    mejorBloqueCnt=horasOrdenadas.filter(([h])=>parseInt(h)>=ini&&parseInt(h)<=fin).reduce((s,[,t])=>s+t,0);
+  }
+
+  const horasH=horasOrdenadas.length?
+    // Resumen rango pico
+    '<div style="background:var(--nl);border-radius:10px;padding:8px 12px;margin-bottom:10px;">'+
+      '<div style="font-size:.76rem;font-weight:900;color:var(--naranja);margin-bottom:3px">🏆 Horario pico</div>'+
+      (rangoInicio!==null&&rangoInicio!==rangoFin?
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--texto)">'+rangoInicio+'h — '+(rangoFin+1)+'h</div>':
+        '<div style="font-size:1.1rem;font-weight:900;color:var(--texto)">'+(mejorH!==null?mejorH+'h — '+(mejorH+1)+'h':'—')+'</div>')+
+      '<div style="font-size:.7rem;color:var(--gris);margin-top:2px">'+mejorBloqueCnt+' tickets en ese período</div>'+
+    '</div>'+
+    // Barras por hora
+    '<div class="hora-grid">'+
+    horasOrdenadas.map(([h,tks])=>{
+      const pct=Math.round(tks/maxTks*100);
+      const esPico=rangoInicio!==null&&parseInt(h)>=rangoInicio&&parseInt(h)<=rangoFin;
+      const color=esPico?'var(--naranja)':pct>60?'var(--vd)':'var(--v3)';
+      return'<div class="hora-cel">'+
+        '<div class="hora-n" style="'+(esPico?'color:var(--naranja);font-weight:900':'')+'">'+h+'h</div>'+
+        '<div class="hora-b" style="background:'+color+';opacity:'+(0.25+pct/100*0.75)+'"></div>'+
+        '<div style="font-size:.55rem;color:var(--gris);margin-top:2px">'+tks+'</div>'+
+      '</div>';
+    }).join('')+
+    '</div>'
+    :'<div class="empty">Sin datos de hora</div>';
+
+  // Comparar meses histórico
+  const vXMes={},gXMes={};
+  raw.totales.filter(t=>!EXCLUIR_VENDEDORES.includes(normVend(t.vendedor||'')))
+    .forEach(t=>{const m=t.fechaStr?t.fechaStr.slice(0,7):'';if(m)vXMes[m]=(vXMes[m]||0)+(t.total||0);});
+  raw.items.forEach(i=>{const m=i.fechaStr?i.fechaStr.slice(0,7):'';if(m)gXMes[m]=(gXMes[m]||0)+(i.gananciaAprox||0);});
+  const ultMeses=Object.keys(vXMes).sort().slice(-6);
+  const maxMV=Math.max(...ultMeses.map(m=>vXMes[m]||0),1);
+  const maxMG=Math.max(...ultMeses.map(m=>gXMes[m]||0),1); // escala propia para ganancia
+  const compMH=ultMeses.reverse().map(m=>{
+    const [a,mo]=m.split('-');
+    const lbl=MESES[parseInt(mo)-1].substring(0,3)+' '+a.slice(2);
+    const pV=Math.min(100,Math.round((vXMes[m]||0)/maxMV*100));
+    const pG=Math.min(100,Math.round(Math.max(0,gXMes[m]||0)/maxMG*100)); // sin negativos, escala propia
+    return'<div class="comp-row"><span class="comp-l">'+lbl+'</span>'+
+      '<div class="comp-bars">'+
+        '<div class="comp-bg"><div class="comp-f bar-v" style="width:'+pV+'%"></div></div>'+
+        '<div class="comp-bg"><div class="comp-f bar-g" style="width:'+pG+'%"></div></div>'+
+      '</div>'+
+      '<div class="comp-v"><div class="comp-vt">'+fmt(vXMes[m]||0)+'</div><div class="comp-vg">+'+fmt(gXMes[m]||0)+'</div></div>'+
+    '</div>';
+  }).join('');
+
+  // Vencimientos
+  const venc=raw.vencProximos||[];
+  const vencH=venc.length?venc.map(v=>{
+    const {cls,txt}=badgeVenc(v.dias);
+    const stockCls=clsStock(v.stock);
+    return'<div class="venc-i">'+
+      '<div><div class="venc-n'+(v.vencido?' vencido-text':'')+'">'+v.nombre.substring(0,30)+'</div>'+
+      '<div style="font-size:.7rem;color:var(--gris);">Stock <span class="'+stockCls+'">'+v.stock+'</span> · '+v.fecha+'</div></div>'+
+      '<span class="badge '+cls+'">'+txt+'</span>'+
+    '</div>';
+  }).join(''):'<div class="empty">✅ Sin vencimientos próximos</div>';
+
+  // Detalle días seleccionados
+  const diasOrd=[...diasSel].sort();
+  const detH=diasOrd.map(ds=>{
+    const{items:id,totals:td}=filtrar([ds]);
+    const totDia=td.reduce((s,t)=>s+(t.total||0),0);
+    const ganDia=id.reduce((s,i)=>s+(i.gananciaAprox||0),0);
+    const[a,m,d]=ds.split('-');
+    const fLabel=parseInt(d)+' de '+MESES[parseInt(m)-1];
+    const esHoy=ds===today;
+    const DNOM2=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const tksH=td.length?td.map(t=>{
+      const prods=id.filter(i=>i.ticket===t.ticket);
+      const fPhone=extractFiadoPhone(t.metodo);
+      const waTxt=safeEnc(
+        '🛒 *Patagonia Salvaje* · #'+t.ticket+'\n'+
+        '📅 '+fLabel+' · '+t.hora+'hs\n\n'+
+        prods.map(p=>p.qty+'× '+p.nombre.substring(0,22)+'  '+fmt(p.subtotal)).join('\n')+
+        '\n─────────────────\n'+
+        '*💰 Total: '+fmt(t.total)+'*\n'+
+        sanitizeMetodoWA(t.metodo)+'\n\n'+
+        '¡Gracias por tu compra! 🙏'
+      );
+      const waHref='intent://send/'+fPhone+'?text='+waTxt+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end';
+      const esFiado=(t.metodo||'').toUpperCase().includes('FIADO');
+      return'<div class="tkt'+(esFiado?' tkt-fiado':'')+'">'+
+        '<div class="tkt-hdr"><span>'+(esFiado?'📋':'🎫')+' #'+t.ticket+' <span class="vtag">'+t.vendedor+'</span></span><span>'+t.hora+' <span class="mtag">'+t.metodo+'</span></span></div>'+
+        prods.map(p=>'<div class="vi"><span>'+p.qty+'× '+p.nombre.substring(0,24)+'</span><span>'+fmt(p.subtotal)+'</span></div>').join('')+
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding-top:5px;border-top:1px solid var(--borde);margin-top:3px">'+
+          '<button onclick="window.open(\''+waHref+'\',\'_blank\')" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:.7rem;font-weight:700;cursor:pointer">📲 Enviar</button>'+
+          '<span style="font-size:.82rem;font-weight:900;color:var(--vd)">'+fmt(t.total)+'</span>'+
+        '</div>'+
+      '</div>';
+    }).join(''):'<div style="font-size:.78rem;color:#bbb;padding:6px">Sin ventas</div>';
+    return'<div class="dd">'+
+      '<div class="dd-hdr" onclick="togDet(this)">'+
+        '<span class="dd-f">📅 '+fLabel+(esHoy?' <span style="background:var(--naranja);color:#fff;font-size:.6rem;padding:1px 5px;border-radius:6px;margin-left:4px">HOY</span>':'')+'</span>'+
+        '<div class="dd-r"><div style="font-weight:900;color:var(--vd);font-size:.88rem">'+fmt(totDia)+'</div><div style="font-size:.72rem;color:var(--naranja)">+'+fmt(ganDia)+'</div></div>'+
+      '</div>'+
+      '<div class="dd-body">'+tksH+'</div>'+
+    '</div>';
+  }).join('');
+
+  const nSel=diasSel.size;
+  const diasLabel=nSel===0?'Ningún día':nSel===1?'1 día':nSel+' días';
+
+  // Variables para el panel selector
+  const hoySelec = diasSel.size===1 && diasSel.has(today);
+  const anioActual = new Date().getFullYear();
+
+  // Detectar años anteriores con datos
+  const aniosConDatos = raw ? [...new Set([
+    ...raw.totales.map(t=>t.fechaStr?t.fechaStr.slice(0,4):null),
+    ...raw.items.map(i=>i.fechaStr?i.fechaStr.slice(0,4):null)
+  ].filter(Boolean))].map(Number).filter(a=>a<anioActual).sort((a,b)=>b-a) : [];
+
+  // Semanas del mes actual
+  const semsH = Array.from({length:6},(_,i)=>{
+    const n=i+1, ini=(n-1)*7+1, fin=Math.min(n*7,diasEnMes);
+    if(ini>diasEnMes) return '';
+    let semSel=false;
+    for(let d=ini;d<=fin;d++){
+      if(diasSel.has(anio+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'))){semSel=true;break;}
+    }
+    return '<button class="btn-sem'+(semSel?' activo':'')+'" onclick="selSemana('+n+')">S'+n+'</button>';
+  }).join('');
+
+  // Meses del año actual
+  const mesesH = MESES.map((nm,mi)=>{
+    const prefix=anio+'-'+String(mi+1).padStart(2,'0');
+    const tieneData=raw&&raw.totales.some(t=>t.fechaStr&&t.fechaStr.startsWith(prefix));
+    const esSel=[...diasSel].some(d=>d.startsWith(prefix));
+    const esFuturo=new Date(anio,mi,1)>new Date();
+    if(esFuturo) return '';
+    let cls='btn-mes-sel'+(esSel?' activo':tieneData?' tiene':' sin');
+    return '<button class="'+cls+'" onclick="selMesCal('+anio+','+mi+')">'+nm.substring(0,3)+'</button>';
+  }).join('');
+
+  // Años anteriores colapsables
+  const aniosPanelH = aniosConDatos.length===0
+    ? '<div style="color:var(--gris);font-size:.75rem;padding:6px 0;opacity:.6">Sin datos de años anteriores</div>'
+    : aniosConDatos.map(a=>{
+        const abierto=aniosAbiertos.has(a);
+        const mesesAnioH=MESES.map((nm,mi)=>{
+          const prefix=a+'-'+String(mi+1).padStart(2,'0');
+          const tieneData=raw&&raw.totales.some(t=>t.fechaStr&&t.fechaStr.startsWith(prefix));
+          const esSel=[...diasSel].some(d=>d.startsWith(prefix));
+          if(!tieneData) return '';
+          let cls='btn-mes-sel'+(esSel?' activo':' tiene');
+          return '<button class="'+cls+'" onclick="selMesCal('+a+','+mi+')">'+nm.substring(0,3)+'</button>';
+        }).join('');
+        const hayMeses=mesesAnioH.trim().length>0;
+        return '<div class="anios-wrap">'+
+          '<button class="btn-anio-toggle" onclick="toggleAnio('+a+')">'+
+            '<span>📆 '+a+'</span>'+
+            '<div style="display:flex;align-items:center;gap:8px">'+
+              '<button onclick="event.stopPropagation();selAnio('+a+')" style="background:var(--vl);border:1.5px solid var(--verde);border-radius:8px;padding:2px 9px;font-size:.63rem;font-weight:700;color:var(--vd);cursor:pointer;font-family:inherit">📅 Todo</button>'+
+              '<span>'+(abierto?'▲':'▶')+'</span>'+
+            '</div>'+
+          '</button>'+
+          '<div class="anio-panel'+(abierto?' open':'')+'">'+
+            (hayMeses
+              ? '<div class="anio-titulo">Meses con ventas</div><div class="anio-meses-row">'+mesesAnioH+'</div>'
+              : '<div style="color:var(--gris);font-size:.75rem;opacity:.6">Sin datos</div>')+
+          '</div>'+
+        '</div>';
+      }).join('');
+
+  document.getElementById('app').innerHTML=
+    '<div class="sel-panel">'+
+      '<div class="sel-titulo">'+
+        '<span>📋 Seleccioná tu informe</span>'+
+        '<button onclick="deselTodo()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;font-family:inherit">✕ Limpiar</button>'+
+      '</div>'+
+      '<div class="sel-body">'+
+
+        // 1. HOY — botón destacado arriba
+        '<button class="btn-hoy-top'+(hoySelec?' activo':'')+'" onclick="selHoy()">'+
+          '📍 Hoy — '+(()=>{const h=new Date();const ds=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];return ds[h.getDay()]+' '+h.getDate()+' de '+MESES[h.getMonth()];})()+''+
+        '</button>'+
+
+        // 2. Calendario del mes
+        '<div class="sel-sec">'+
+          '<div class="mes-nav" style="margin-bottom:8px">'+
+            '<button class="btn-mes" onclick="cambMes(-1)">‹</button>'+
+            '<span class="mes-nombre">'+MESES[mes]+' '+anio+'</span>'+
+            '<button class="btn-mes" onclick="cambMes(1)">›</button>'+
+          '</div>'+
+          '<div class="cal">'+calH+'</div>'+
+        '</div>'+
+
+        // 3. Semanas
+        '<div class="sel-sec">'+
+          '<div class="sel-sec-lbl">Semanas</div>'+
+          '<div class="sems-row">'+semsH+
+            '<button class="btn-sem" onclick="selTodo()" title="Todo el mes" style="background:var(--vl);border-color:var(--verde);color:var(--vd)">✅ Mes</button>'+
+          '</div>'+
+        '</div>'+
+
+        // 4. Meses del año actual
+        '<div class="sel-sec">'+
+          '<div class="sel-sec-lbl" style="display:flex;align-items:center;justify-content:space-between">'+
+            '<span>'+anio+'</span>'+
+            '<div style="display:flex;align-items:center;gap:6px">'+
+              '<span style="font-size:.58rem;color:var(--gris);font-weight:400;font-style:italic">toque para acumular</span>'+
+              '<button onclick="selAnioActual()" style="background:var(--vl);border:1.5px solid var(--verde);border-radius:8px;padding:3px 10px;font-size:.65rem;font-weight:700;color:var(--vd);cursor:pointer;font-family:inherit">📅 Todo el año</button>'+
+            '</div>'+
+          '</div>'+
+          '<div class="meses-row">'+mesesH+'</div>'+
+        '</div>'+
+
+        // 5. Años anteriores colapsables
+        '<div class="sel-sec">'+
+          '<div class="sel-sec-lbl">Años anteriores</div>'+
+          aniosPanelH+
+        '</div>'+
+
+        // Filtros método y vendedor
+        (vendedores.length>1?'<div class="lbl">Vendedor</div>'+fVendH:'')+
+        '<div class="lbl">Método de pago</div>'+fMetH+
+
+      '</div>'+
+    '</div>'+
+
+    // RESULTADOS
+    '<div class="resultados">'+
+      // Botón Excel
+      (stats.venta>0?
+        '<button onclick="descargarExcel()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:none;border-radius:14px;color:#fff;font-size:.85rem;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:12px;box-shadow:0 2px 8px rgba(46,125,50,.3)">📥 Descargar informe Excel</button>'
+        :'')+
+      // Resumen
+      cardsH+
+      // Métodos
+      (Object.keys(stats.metodos).length?'<div class="tar"><div class="tar-t">💳 Por método de pago</div>'+metRowsH+'</div>':'')+
+      // Vendedores
+      (Object.keys(stats.vendedores).length>1?'<div class="tar"><div class="tar-t">👥 Por vendedor</div>'+vendRowsH+'</div>':'')+
+      // Top productos — con toggle venta/ganancia
+      '<div class="tar" style="'+(topOrden==='ganancia'?'border-color:var(--naranja)':'')+'">'+
+        '<div class="tar-t" style="display:flex;align-items:center;justify-content:space-between">'+
+          '<span style="color:'+(topOrden==='ganancia'?'var(--naranja)':'inherit')+'">'+(topOrden==='venta'?'🏆 Top por venta':'💰 Top por ganancia')+'</span>'+
+          '<div style="display:flex;gap:4px">'+
+            '<button onclick="topOrden=\'venta\';prodSelIdx=-1;renderApp()" style="padding:3px 10px;border-radius:20px;border:1px solid '+(topOrden==='venta'?'var(--verde)':'var(--borde)')+';background:'+(topOrden==='venta'?'var(--vl)':'#fff')+';color:'+(topOrden==='venta'?'var(--vd)':'var(--gris)')+';font-size:.65rem;font-weight:700;cursor:pointer;">🟩 Venta</button>'+
+            '<button onclick="topOrden=\'ganancia\';prodSelIdx=-1;renderApp()" style="padding:3px 10px;border-radius:20px;border:1px solid '+(topOrden==='ganancia'?'var(--naranja)':'var(--borde)')+';background:'+(topOrden==='ganancia'?'var(--nl)':'#fff')+';color:'+(topOrden==='ganancia'?'#e65100':'var(--gris)')+';font-size:.65rem;font-weight:700;cursor:pointer;">🟧 Ganancia</button>'+
+          '</div>'+
+        '</div>'+
+        (topOrden==='venta'?topsH:topGanH)+
+      '</div>'+
+      // Mejores días
+      (mejoresDias.length?'<div class="tar"><div class="tar-t">🏅 Mejores días</div>'+mejDiasH+'</div>':'')+
+      // Días semana
+      '<button class="toggle-btn" onclick="showDiaSem=!showDiaSem;renderApp()">'+
+        (showDiaSem?'▲':'▼')+' Ventas por día de la semana'+
+      '</button>'+
+      (showDiaSem?'<div class="tar"><div class="tar-t">📅 Por día de semana</div>'+dSemH+'</div>':'')+
+      // Horas
+      '<button class="toggle-btn" onclick="showHoras=!showHoras;renderApp()">'+
+        (showHoras?'▲':'▼')+' Horas de más ventas'+
+      '</button>'+
+      (showHoras?'<div class="tar"><div class="tar-t">🕐 Por hora del día</div>'+horasH+'</div>':'')+
+      // 6 meses
+      (compMH?'<div class="tar"><div class="tar-t">📅 Últimos 6 meses <span style="font-size:.58rem;color:var(--gris)">🟩 venta 🟧 ganancia</span></div>'+compMH+'</div>':'')+
+      // Vencimientos top 7 días (siempre visible si hay algo urgente)
+      (()=>{
+        const venc7=venc.filter(v=>v.dias<=7);
+        if(!venc7.length)return'';
+        const v7H=venc7.map(v=>{
+          const{cls,txt}=badgeVenc(v.dias);
+          const stockCls=clsStock(v.stock);
+          return'<div class="venc-i"><div><div class="venc-n'+(v.vencido?' vencido-text':'')+'">'+v.nombre.substring(0,30)+'</div>'+
+            '<div style="font-size:.7rem;color:var(--gris)">Stock <span class="'+stockCls+'">'+v.stock+'</span> · '+v.fecha+'</div></div>'+
+            '<span class="badge '+cls+'">'+txt+'</span></div>';
+        }).join('');
+        return'<div class="tar" style="border-color:'+(venc7.some(v=>v.vencido)?'var(--rojo)':'var(--naranja)')+'"><div class="tar-t" style="color:'+(venc7.some(v=>v.vencido)?'var(--rojo)':'var(--naranja)')+'">🚨 Por vencer en 7 días ('+venc7.length+')</div>'+v7H+'</div>';
+      })()+
+      // Vencimientos completos (oculto)
+      '<button class="toggle-btn" onclick="showVenc=!showVenc;renderApp()" style="border-color:'+(venc.some(v=>v.vencido)?'var(--rojo)':venc.some(v=>v.dias<=7)?'var(--naranja)':'var(--borde)')+';color:'+(venc.some(v=>v.vencido)?'var(--rojo)':venc.some(v=>v.dias<=7)?'var(--naranja)':'var(--gris)')+'">'+
+        (showVenc?'▲':'▼')+' ⏰ Todos los vencimientos próximos ('+venc.length+')'+
+      '</button>'+
+      (showVenc?'<div class="tar"><div class="tar-t">⏰ Vencimientos — próximos 30 días</div>'+vencH+'</div>':'')+
+      // Detalle días
+      (diasOrd.length?'<div style="font-size:.68rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:1.2px;margin:12px 0 8px">🧾 Ventas del período — '+diasLabel+'</div>'+detH:'')+
+      // ===== TABLA PRODUCTOS x DÍAS =====
+      (()=>{
+        // Siempre últimos 30 días del histórico total
+        const todayStr=hoyStr();
+        const ultimos30=[];
+        for(let i=29;i>=0;i--){
+          const d=new Date(); d.setDate(d.getDate()-i);
+          ultimos30.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+        }
+        // Agrupar items por producto y día
+        const prodDias={}; // {nombre: {fecha: qty}}
+        if(raw) raw.items.forEach(it=>{
+          if(!ultimos30.includes(it.fechaStr)) return;
+          if(!prodDias[it.nombre]) prodDias[it.nombre]={};
+          prodDias[it.nombre][it.fechaStr]=(prodDias[it.nombre][it.fechaStr]||0)+it.qty;
+        });
+        // Totales por producto, ordenar por total desc
+        const prods=Object.entries(prodDias)
+          .map(([n,dias])=>({n, dias, tot:Object.values(dias).reduce((s,v)=>s+v,0)}))
+          .filter(p=>p.tot>0)
+          .sort((a,b)=>b.tot-a.tot);
+        if(!prods.length) return '';
+        // Máximo para escala de color
+        const maxQty=Math.max(...prods.flatMap(p=>Object.values(p.dias)));
+        // Cabecera días
+        const DOW=['D','L','M','X','J','V','S'];
+        const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        let ultimoMesU=-1;
+        const thDias=ultimos30.map(ds=>{
+          const d=new Date(ds+'T12:00:00');
+          const esHoy=ds===todayStr;
+          const mesLabel=d.getMonth()!==ultimoMesU?'<span class="dia-dow" style="color:var(--azul);font-weight:900">'+MESES_CORTOS[d.getMonth()]+'</span>':'<span class="dia-dow">'+DOW[d.getDay()]+'</span>';
+          ultimoMesU=d.getMonth();
+          return'<th class="pdias-th-dia'+(esHoy?' hoy-col':'')+'">'+
+            '<span class="dia-n">'+d.getDate()+'</span>'+
+            mesLabel+
+          '</th>';
+        }).join('');
+        // Leyenda rango
+        const fechaIniU=new Date(ultimos30[0]+'T12:00:00');
+        const fechaFinU=new Date(ultimos30[29]+'T12:00:00');
+        const leyendaU='<div style="font-size:.68rem;color:var(--gris);margin-bottom:8px;padding:4px 6px;background:var(--al);border-radius:8px">'+
+          '📅 Del '+fechaIniU.getDate()+' '+MESES_CORTOS[fechaIniU.getMonth()]+' al '+fechaFinU.getDate()+' '+MESES_CORTOS[fechaFinU.getMonth()]+' · Scrolleá ➡️ para ver todos los días'+
+        '</div>';
+        const PREFIJOS_COMUNES_U=['CERVEZA ','GASEOSA ','VINO ','HAMBURGUESAS ','HAMBURGUESA ','SALCHICHAS ','SALCHICHA ','JUGO ','AGUA ','GALLETITAS ','GALLETITA ','ALFAJOR ','ALFAJORES ','FERNET ','WHISKY ','VODKA ','RON ','GIN ','ACEITE ','LECHE ','YOGUR ','QUESO ','PAN ','PAPA ','PAPAS '];
+        const abrevProdU=n=>{const u=n.toUpperCase();for(const p of PREFIJOS_COMUNES_U){if(u.startsWith(p))return n.substring(p.length);}return n;};
+        // Filas productos
+        const filas=prods.map(p=>{
+          const celdas=ultimos30.map(ds=>{
+            const q=p.dias[ds]||0;
+            const qr=Math.round(q*10)/10;
+            const nivel=q===0?0:q<=maxQty*.15?1:q<=maxQty*.35?2:q<=maxQty*.55?3:q<=maxQty*.8?4:5;
+            return'<td><span class="pdias-qty q'+nivel+'">'+(q===0?'·':qr)+'</span></td>';
+          }).join('');
+          return'<tr>'+
+            '<td class="col-prod" title="'+p.n+'">'+abrevProdU(p.n).substring(0,22)+'</td>'+
+            celdas+
+            '<td class="col-tot">'+Math.round(p.tot*10)/10+'</td>'+
+          '</tr>';
+        }).join('');
+        const tabla='<div class="pdias-wrap">'+
+          leyendaU+
+          '<table class="pdias-table">'+
+            '<thead><tr>'+
+              '<th class="col-prod">Producto</th>'+thDias+'<th class="col-tot">30d</th>'+
+            '</tr></thead>'+
+            '<tbody>'+filas+'</tbody>'+
+          '</table>'+
+        '</div>';
+        return '<button class="toggle-btn" onclick="showPDias=!showPDias;renderApp()" style="border-color:var(--azul);color:var(--azul)">'+
+          (showPDias?'▲':'▼')+' 📊 Detalle unidades por producto — últimos 30 días'+
+        '</button>'+
+        (showPDias?'<div class="tar" style="padding:8px;overflow:visible">'+tabla+'</div>':'');
+      })()+
+      // ===== TABLA GANANCIA x DÍAS =====
+      (()=>{
+        const todayStr=hoyStr();
+        const ultimos30=[];
+        for(let i=29;i>=0;i--){
+          const d=new Date(); d.setDate(d.getDate()-i);
+          ultimos30.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+        }
+        // Agrupar gananciaAprox por producto y día
+        const prodDiasG={};
+        if(raw) raw.items.forEach(it=>{
+          if(!ultimos30.includes(it.fechaStr)) return;
+          const gan=it.tieneCosto?(it.gananciaReal||0):(it.gananciaAprox||0);
+          if(!prodDiasG[it.nombre]) prodDiasG[it.nombre]={};
+          prodDiasG[it.nombre][it.fechaStr]=(prodDiasG[it.nombre][it.fechaStr]||0)+gan;
+        });
+        const prods=Object.entries(prodDiasG)
+          .map(([n,dias])=>({n, dias, tot:Object.values(dias).reduce((s,v)=>s+v,0)}))
+          .filter(p=>p.tot>0)
+          .sort((a,b)=>b.tot-a.tot);
+        if(!prods.length) return '';
+        const maxGan=Math.max(...prods.flatMap(p=>Object.values(p.dias)));
+        const DOW=['D','L','M','X','J','V','S'];
+        const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        let ultimoMes=-1;
+        const thDias=ultimos30.map(ds=>{
+          const d=new Date(ds+'T12:00:00');
+          const esHoy=ds===todayStr;
+          const mesLabel=d.getMonth()!==ultimoMes?'<span class="dia-dow" style="color:var(--naranja);font-weight:900">'+MESES_CORTOS[d.getMonth()]+'</span>':'<span class="dia-dow">'+DOW[d.getDay()]+'</span>';
+          ultimoMes=d.getMonth();
+          return'<th class="pdias-th-dia'+(esHoy?' hoy-col':'')+'">'+
+            '<span class="dia-n">'+d.getDate()+'</span>'+
+            mesLabel+
+          '</th>';
+        }).join('');
+        // Leyenda rango
+        const fechaIni=new Date(ultimos30[0]+'T12:00:00');
+        const fechaFin=new Date(ultimos30[29]+'T12:00:00');
+        const leyenda='<div style="font-size:.68rem;color:var(--gris);margin-bottom:8px;padding:4px 6px;background:var(--nl);border-radius:8px">'+
+          '📅 Del '+fechaIni.getDate()+' '+MESES_CORTOS[fechaIni.getMonth()]+' al '+fechaFin.getDate()+' '+MESES_CORTOS[fechaFin.getMonth()]+' · Scrolleá ➡️ para ver todos los días'+
+        '</div>';
+        const fmtK=v=>v>=1000?'$'+Math.round(v/1000)+'k':'$'+Math.round(v);
+        const fmtFull=v=>'$'+Math.round(v).toLocaleString('es-AR');
+        const PREFIJOS_COMUNES=['CERVEZA ','GASEOSA ','VINO ','HAMBURGUESAS ','HAMBURGUESA ','SALCHICHAS ','SALCHICHA ','JUGO ','AGUA ','GALLETITAS ','GALLETITA ','ALFAJOR ','ALFAJORES ','FERNET ','WHISKY ','VODKA ','RON ','GIN ','ACEITE ','LECHE ','YOGUR ','QUESO ','PAN ','PAPA ','PAPAS '];
+        const abrevProd=n=>{const u=n.toUpperCase();for(const p of PREFIJOS_COMUNES){if(u.startsWith(p))return n.substring(p.length);}return n;};
+        const filas=prods.map(p=>{
+          const celdas=ultimos30.map(ds=>{
+            const g=p.dias[ds]||0;
+            const nivel=g===0?0:g<=maxGan*.15?1:g<=maxGan*.35?2:g<=maxGan*.55?3:g<=maxGan*.8?4:5;
+            return'<td><span class="gd-qty q'+nivel+'">'+(g===0?'·':fmtK(g))+'</span></td>';
+          }).join('');
+          return'<tr>'+
+            '<td class="col-prod" title="'+p.n+'">'+abrevProd(p.n).substring(0,22)+'</td>'+
+            celdas+
+            '<td class="col-tot" style="color:var(--naranja)">'+fmtFull(p.tot)+'</td>'+
+          '</tr>';
+        }).join('');
+        const tabla='<div class="pdias-wrap">'+
+          leyenda+
+          '<table class="pdias-table">'+
+            '<thead><tr>'+
+              '<th class="col-prod">Producto</th>'+thDias+'<th class="col-tot">30d</th>'+
+            '</tr></thead>'+
+            '<tbody>'+filas+'</tbody>'+
+          '</table>'+
+        '</div>';
+        return '<button class="toggle-btn" onclick="showGanDias=!showGanDias;renderApp()" style="border-color:var(--naranja);color:var(--naranja);margin-top:4px">'+
+          (showGanDias?'▲':'▼')+' 💰 Ganancia por producto — últimos 30 días'+
+        '</button>'+
+        (showGanDias?'<div class="tar" style="padding:8px;overflow:visible">'+tabla+'</div>':'');
+      })()+
+      // ===== COMPRA SUGERIDA INTELIGENTE =====
+      '<button class="toggle-btn" onclick="showCSI=!showCSI;renderApp()" style="border-color:#6a1b9a;color:#6a1b9a;margin-top:4px">'+
+        (showCSI?'▲':'▼')+' 🛒 Compra Sugerida Inteligente'+
+      '</button>'+
+      (showCSI?
+        '<div class="tar" style="overflow:visible">'+
+          '<div class="tar-t" style="color:#6a1b9a">🛒 COMPRA SUGERIDA INTELIGENTE</div>'+
+          renderCompraSugerida()+
+        '</div>'
+      :'')+
+      (function(){
+        var rl=raw.recienLlegados||[];
+        if(!rl.length) return '';
+        return '<button class="toggle-btn" onclick="showRecienLlegados=!showRecienLlegados;renderApp()" style="border-color:#00897b;color:#00897b;margin-top:4px">'+
+          (showRecienLlegados?'▲':'▼')+' 🆕 Recién Llegados ('+rl.length+')'+
+          '</button>'+
+          (showRecienLlegados?
+            '<div class="tar" style="overflow:visible">'+
+              '<div class="tar-t" style="color:#00897b">🆕 RECIÉN LLEGADOS — últimos 3 días</div>'+
+              renderRecienLlegados(rl)+
+            '</div>'
+          :'');
+      })()+
+    '</div>'+
+    '<div class="pb"></div>';
+}
+
+// ====== INTERACCIONES ======
+function toggleDia(ds){diasSel.has(ds)?diasSel.delete(ds):diasSel.add(ds);renderApp();}
+function togMet(m){
+  if(m==='TODOS'){metActivos.clear();metActivos.add('TODOS');}
+  else{metActivos.delete('TODOS');metActivos.has(m)?metActivos.delete(m):metActivos.add(m);if(!metActivos.size)metActivos.add('TODOS');}
+  renderApp();
+}
+function togVend(v){
+  const vn=normVend(v);
+  if(vn==='TODOS'||v==='TODOS'){vendActivos.clear();vendActivos.add('TODOS');}
+  else{vendActivos.delete('TODOS');vendActivos.has(vn)?vendActivos.delete(vn):vendActivos.add(vn);if(!vendActivos.size)vendActivos.add('TODOS');}
+  renderApp();
+}
+function cambMes(d){
+  if(modoNav==='anio'){
+    anio+=d; diasSel.clear(); renderApp(); return;
+  }
+  mes+=d;if(mes<0){mes=11;anio--;}if(mes>11){mes=0;anio++;}
+  diasSel.clear();
+  const hoy=new Date();
+  if(mes===hoy.getMonth()&&anio===hoy.getFullYear()) diasSel.add(hoyStr());
+  renderApp();
+}
+function selTodo(){
+  diasSel.clear();
+  const n=new Date(anio,mes+1,0).getDate();
+  for(let d=1;d<=n;d++) diasSel.add(anio+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+  renderApp();
+}
+function deselTodo(){diasSel.clear();renderApp();}
+function selHoy(){
+  mes=new Date().getMonth(); anio=new Date().getFullYear();
+  diasSel.clear(); diasSel.add(hoyStr()); renderApp();
+}
+function selSemana(n){
+  diasSel.clear();
+  const ini=(n-1)*7+1;
+  const fin=Math.min(n*7,new Date(anio,mes+1,0).getDate());
+  for(let d=ini;d<=fin;d++)diasSel.add(anio+'-'+String(mes+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+  renderApp();
+}
+function selMesCal(a,m){
+  // Toggle acumulativo: si todos los días del mes ya están → deseleccionar; si no → agregar
+  const prefix=a+'-'+String(m+1).padStart(2,'0');
+  const n=new Date(a,m+1,0).getDate();
+  const diasDelMes=Array.from({length:n},(_,i)=>prefix+'-'+String(i+1).padStart(2,'0'));
+  const todosSelec=diasDelMes.every(d=>diasSel.has(d));
+  if(todosSelec){
+    diasDelMes.forEach(d=>diasSel.delete(d));
+  } else {
+    diasDelMes.forEach(d=>diasSel.add(d));
+    mes=m; anio=a;
+  }
+  renderApp();
+}
+function selMes(m){selMesCal(anio,m);}
+function selAnio(a){
+  // Toggle acumulativo: todos los meses con datos de ese año
+  const diasDelAnio=[];
+  for(let mi=0;mi<12;mi++){
+    const prefix=a+'-'+String(mi+1).padStart(2,'0');
+    const hayData=raw&&raw.totales.some(t=>t.fechaStr&&t.fechaStr.startsWith(prefix));
+    if(!hayData) continue;
+    const n=new Date(a,mi+1,0).getDate();
+    for(let d=1;d<=n;d++) diasDelAnio.push(prefix+'-'+String(d).padStart(2,'0'));
+  }
+  const todosSelec=diasDelAnio.length>0&&diasDelAnio.every(d=>diasSel.has(d));
+  if(todosSelec) diasDelAnio.forEach(d=>diasSel.delete(d));
+  else diasDelAnio.forEach(d=>diasSel.add(d));
+  renderApp();
+}
+function selAnioActual(){
+  // Toggle acumulativo: todos los meses NO futuros del año actual
+  const diasDelAnio=[];
+  const hoy=new Date();
+  for(let mi=0;mi<12;mi++){
+    if(new Date(anio,mi,1)>hoy) break;
+    const prefix=anio+'-'+String(mi+1).padStart(2,'0');
+    const n=new Date(anio,mi+1,0).getDate();
+    for(let d=1;d<=n;d++) diasDelAnio.push(prefix+'-'+String(d).padStart(2,'0'));
+  }
+  const todosSelec=diasDelAnio.length>0&&diasDelAnio.every(d=>diasSel.has(d));
+  if(todosSelec) diasDelAnio.forEach(d=>diasSel.delete(d));
+  else diasDelAnio.forEach(d=>diasSel.add(d));
+  renderApp();
+}
+function toggleAnio(a){
+  aniosAbiertos.has(a)?aniosAbiertos.delete(a):aniosAbiertos.add(a);
+  renderApp();
+}
+function selAnual(){
+  diasSel.clear();
+  if(raw){
+    raw.items.forEach(i=>{if(i.fechaStr)diasSel.add(i.fechaStr);});
+    raw.totales.forEach(t=>{if(t.fechaStr)diasSel.add(t.fechaStr);});
+  }
+  renderApp();
+}
+function toggleModoNav(){
+  modoNav = modoNav==='mes' ? 'anio' : 'mes';
+  renderApp();
+}
+function togDet(h){h.nextElementSibling.classList.toggle('open');}
+
+// ====== MODAL DETALLE PRODUCTO ======
+function abrirModalProd(nombre) {
+  const overlay = document.getElementById('mprodOverlay');
+  const nomEl   = document.getElementById('mprodNombre');
+  const chipsEl = document.getElementById('mprodChips');
+  const bodyEl  = document.getElementById('mprodBody');
+
+  const diasArr = Array.from(diasSel);
+  const {items} = filtrar(diasArr);
+  const its = items.filter(i => i.nombre === nombre);
+
+  nomEl.textContent = nombre;
+  chipsEl.innerHTML = '';
+
+  if (!its.length) {
+    bodyEl.innerHTML = '<div class="empty">Sin ventas en el período seleccionado</div>';
+  } else {
+    const totalVenta    = its.reduce((s,i) => s + i.subtotal, 0);
+    const totalQty      = its.reduce((s,i) => s + i.qty, 0);
+    const tieneCosto    = its.some(i => i.tieneCosto);
+    const ganancia      = tieneCosto
+      ? its.reduce((s,i) => s + (i.gananciaReal || 0), 0)
+      : its.reduce((s,i) => s + (i.gananciaAprox || 0), 0);
+    const precioPromedio = totalQty > 0 ? Math.round(totalVenta / totalQty) : 0;
+
+    const porDia = {};
+    its.forEach(i => {
+      if (!porDia[i.fechaStr]) porDia[i.fechaStr] = [];
+      porDia[i.fechaStr].push(i);
+    });
+    const diasOrdenados = Object.keys(porDia).sort().reverse();
+    const MNOM3 = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    const diasHTML = diasOrdenados.map(ds => {
+      const [a,m,d] = ds.split('-');
+      const dw  = new Date(ds+'T12:00:00').getDay();
+      const lbl = DIAS_SEM[dw]+' '+parseInt(d)+' '+MNOM3[parseInt(m)-1];
+      const regs     = porDia[ds];
+      const totalDia = regs.reduce((s,i) => s + i.subtotal, 0);
+      const qtyDia   = regs.reduce((s,i) => s + i.qty, 0);
+      const ganDia   = tieneCosto
+        ? regs.reduce((s,i) => s + (i.gananciaReal || 0), 0)
+        : regs.reduce((s,i) => s + (i.gananciaAprox || 0), 0);
+
+      const tkH = regs.map(i =>
+        '<div class="mprod-ticket">'+
+          '<div class="mprod-trow">'+
+            '<span style="font-weight:700">🎫 #'+i.ticket+'</span>'+
+            '<span style="font-weight:900;color:var(--vd)">'+fmt(i.subtotal)+'</span>'+
+          '</div>'+
+          '<div class="mprod-trow" style="margin-top:3px">'+
+            '<span style="color:var(--gris)">'+i.qty+' u · $'+fmt(i.precio)+'/u'+(i.hora?' · '+i.hora:'')+'</span>'+
+            '<span style="font-size:.68rem;color:var(--naranja);font-weight:700">'+(tieneCosto?'+'+fmt(i.gananciaReal||0):'~+'+fmt(i.gananciaAprox||0))+'</span>'+
+          '</div>'+
+        '</div>'
+      ).join('');
+
+      return '<div class="mprod-sec">📅 '+lbl+
+        ' <span style="color:var(--gris);font-weight:400">'+qtyDia+' u · '+fmt(totalDia)+
+        ' <span style="color:var(--naranja)">+'+fmt(ganDia)+'</span></span></div>'+tkH;
+    }).join('');
+
+    const stockActual = stockMap[nombre];
+    const stockChip = stockActual !== undefined
+      ? (stockActual === 0
+          ? '<span class="mprod-chip" style="background:#ffebee;color:#c62828">⚠️ Sin stock</span>'
+          : stockActual <= 2
+          ? '<span class="mprod-chip" style="background:#fff3e0;color:#e65100">⚠️ Stock: '+stockActual+' und</span>'
+          : stockActual <= 5
+          ? '<span class="mprod-chip" style="background:#fffde7;color:#f57f17">📦 Stock: '+stockActual+' und</span>'
+          : '<span class="mprod-chip" style="background:#e8f5e9;color:#2e7d32">📦 Stock: '+stockActual+' und</span>')
+      : '';
+
+    chipsEl.innerHTML =
+      '<span class="mprod-chip" style="background:var(--vl);color:var(--vd)">'+totalQty+' unidades</span>'+
+      '<span class="mprod-chip" style="background:#e8f5e9;color:var(--vd)">'+diasOrdenados.length+' día'+(diasOrdenados.length>1?'s':'')+'</span>'+
+      (tieneCosto
+        ? '<span class="mprod-chip" style="background:var(--nl);color:var(--naranja)">Costo real ✓</span>'
+        : '<span class="mprod-chip" style="background:#f5f5f5;color:var(--gris)">★ Estimado</span>')+
+      stockChip;
+
+    bodyEl.innerHTML =
+      '<div class="mprod-stat">'+
+        '<div class="mprod-card"><div class="mprod-clbl">Venta total</div><div class="mprod-cval">'+fmt(totalVenta)+'</div></div>'+
+        '<div class="mprod-card naranja"><div class="mprod-clbl">Ganancia'+(tieneCosto?'':' ★')+'</div><div class="mprod-cval nar">'+(tieneCosto?'':'~')+fmt(ganancia)+'</div></div>'+
+        '<div class="mprod-card gris"><div class="mprod-clbl">Precio prom.</div><div class="mprod-cval" style="color:var(--texto)">'+fmt(precioPromedio)+'</div></div>'+
+      '</div>'+
+      diasHTML;
+  }
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalProd() {
+  document.getElementById('mprodOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Listener global para tap en prod-row — evita problemas de escape de comillas
+document.addEventListener('click', function(e) {
+  const row = e.target.closest('.prod-clickable');
+  if (row) abrirModalProd(row.dataset.nombre);
+});
+
+// ====== COMPRA SUGERIDA INTELIGENTE ======
+// Categorías con reposición semanal (sensibles/perecederas)
+// Categorías con reposición DIARIA (pedido para mañana — PAN, panificados)
+var _CSI_DIARIOS   = ['PANADERIA','PANIFICADOS'];
+// Categorías con reposición SEMANAL (PANADERIA/PANIFICADOS ya están en DIARIOS — no duplicar)
+var _CSI_SEMANALES = ['LACTEOS','FRESCOS','CARNICERIA','VERDULERIA','FIAMBRERIA','CARNICOS'];
+// Categorías con regla especial (electrónica/computación)
+var _CSI_ESPECIALES = ['COMPUTACION','ELECTRONICA','TECNOLOGIA','ELECTRO'];
+
+// Detecta categoría desde campo existente o por heurística sobre nombre de producto
+function _csiCat(nombre, catField) {
+  if (catField) return catField.toUpperCase().trim();
+  var n = (nombre||'').toUpperCase();
+  if (/\bLECHE\b|YOGUR|QUESO|MANTECA|\bCREMA\b|RICOTA/.test(n)) return 'LACTEOS';
+  if (/\bPAN\b|\bPANES\b|PANIF|FACTUR|MEDIALUNAS?|BIZCOCHO/.test(n)) return 'PANIFICADOS';
+  if (/TOMATE|LECHUGA|ZAPALLO|\bCEBOLLA\b|\bPAPA\b|\bFRUTA\b|VERDU|MANZANA|NARANJA/.test(n)) return 'FRESCOS';
+  if (/NOTEBOOK|TABLET|\bMOUSE\b|TECLADO|AURICU|CABLE USB|PENDRIVE|COMPUT|ROUTER|IMPRES/.test(n)) return 'ELECTRONICA';
+  return 'ALMACEN';
+}
+
+// Devuelve el tipo de período según categoría
+function _csiPer(cat) {
+  if (_CSI_ESPECIALES.some(function(c){return cat.indexOf(c)>=0;})) return 'especial';
+  if (_CSI_DIARIOS.some(function(c){return cat.indexOf(c)>=0;}))    return 'diario';   // antes de semanal
+  if (_CSI_SEMANALES.some(function(c){return cat.indexOf(c)>=0;}))  return 'semanal';
+  return 'mensual';
+}
+
+// Motor principal: recorre items en un solo paso y aplica todas las reglas
+function calcularMotorCSI() {
+  if (!raw) return {filas:[], nMuertos:0, nVencOmit:0};
+
+  // Fechas de corte como strings YYYY-MM-DD (comparables lexicográficamente)
+  var hoy = new Date();
+  function corte(dias) {
+    var d = new Date(hoy); d.setDate(d.getDate()-dias);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  var c7=corte(7), c30=corte(30), c60=corte(60), c90=corte(90);
+
+  // Un solo recorrido de raw.items → agrega ventas por producto para los 4 períodos
+  var vm = {}; // nombre → {v7, v30, v60, v90}
+  raw.items.forEach(function(it) {
+    var f = it.fechaStr||'';
+    if (f < c90 || !it.nombre) return;
+    var nomLimpio = it.nombre.replace(/\s*\[PRECIO ESP[^\]]*\]/gi,'').trim();
+    if (!nomLimpio) return;
+    if (!vm[nomLimpio]) vm[nomLimpio] = {v7:0,v30:0,v60:0,v90:0};
+    var q = it.qty||0;
+    vm[nomLimpio].v90 += q;
+    if (f >= c60) vm[nomLimpio].v60 += q;
+    if (f >= c30) vm[nomLimpio].v30 += q;
+    if (f >= c7)  vm[nomLimpio].v7  += q;
+  });
+
+  // Stock real desde raw.stockInfo (cubre TODO el inventario, incluye productos sin vencimiento).
+  // raw.vencProximos se usa SOLO para diasVenc — no como fuente de stock.
+  var stockMap={}, diasVencMap={}, catMap={};
+  // 1. Poblar stockMap desde raw.stockInfo — fuente confiable de stock real para todos los productos
+  if (raw.stockInfo) {
+    Object.keys(raw.stockInfo).forEach(function(nom) {
+      stockMap[nom] = raw.stockInfo[nom]; // clave ya viene en MAYÚSCULAS desde el backend
+    });
+  }
+  // 2. Completar diasVencMap desde raw.vencProximos — NO sobreescribe stockMap
+  (raw.vencProximos||[]).forEach(function(v) {
+    if (!v.nombre) return;
+    var nom = v.nombre.toUpperCase(); // normalizar por si el backend devuelve mixedCase
+    if (diasVencMap[nom] === undefined || v.dias < diasVencMap[nom]) {
+      diasVencMap[nom] = v.dias;
+    }
+    if (v.categoria) catMap[nom] = v.categoria;
+  });
+
+  var nMuertos=0, nVencOmit=0, filas=[];
+
+  Object.keys(vm).forEach(function(nombre) {
+    var v = vm[nombre];
+
+    // Regla 1: sin ventas en 90d (imposible por el filtro de c90, pero por seguridad)
+    if (v.v90 === 0) { nMuertos++; return; }
+
+    // Regla 2: producto por vencer en ≤10 días → no sugerir compra
+    var diasVenc = diasVencMap[nombre];
+    if (diasVenc !== undefined && diasVenc <= 10) { nVencOmit++; return; }
+
+    var stockConocido = stockMap[nombre] !== undefined;
+    var stock = stockConocido ? stockMap[nombre] : null;
+    var cat = _csiCat(nombre, catMap[nombre]);
+    var periodoBase = _csiPer(cat);
+    var promDia = v.v90 / 90;
+
+    // ── Regla urgente transversal ──────────────────────────────────────────
+    // Si vende ≥1/día en promedio Y stock ≤1 confirmado → reposición urgente
+    // independientemente de la categoría (almacén, bebidas, snacks, etc.)
+    // Solo si periodoBase NO es ya 'diario' para no duplicar
+    if (stockConocido && stock <= 1 && promDia >= 1 && periodoBase !== 'diario') {
+      periodoBase = 'diario'; // sube a urgente
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    var compraSugerida=null, ventaProyectada=0, motivo='', periodo=periodoBase;
+
+    if (!stockConocido) {
+      // Sin stock confiable: incluir en tabla como referencia pero sin CompraSugerida calculada
+      motivo = 'sin dato de stock';
+      // compraSugerida queda null → se muestra S/D en la tabla
+    }
+    // Regla 0: Diario — panadería / panificados → pedido para mañana
+    // VentaProyectada = MAX(promDia, v7/7, 1) — garantiza al menos 1 unidad sugerida
+    // Con stock=0 nunca puede terminar en 0
+    else if (periodoBase === 'diario') {
+      ventaProyectada = Math.max(promDia, v.v7 / 7, 1);
+      var brutoDiario  = ventaProyectada - stock;
+      compraSugerida   = stock === 0
+        ? Math.max(Math.ceil(brutoDiario), 1)
+        : Math.ceil(brutoDiario);
+      // Distinguir si es panificados nativo o urgencia transversal
+      var esPanCat = _CSI_DIARIOS.some(function(c){return cat.indexOf(c)>=0;});
+      motivo = esPanCat ? 'reposicion diaria' : 'alta rotacion · stock critico';
+      periodo = 'diario';
+    }
+    // Regla 3: Electrónica / Computación — lógica especial por demanda 60d
+    // Requiere stock=0 confirmado; si no hay dato, no se puede afirmar que está sin stock
+    else if (periodoBase === 'especial') {
+      if (stock === 0 && v.v60 === 1)      { compraSugerida=1; ventaProyectada=1; motivo='electronica demanda reciente'; }
+      else if (stock === 0 && v.v60 >= 2)  { compraSugerida=2; ventaProyectada=2; motivo='electronica demanda reciente'; }
+      else return; // stock>0 o condición no cumplida → no reportar
+      periodo = 'especial';
+    }
+    // Regla 5: Categorías sensibles — reposición semanal
+    else if (periodoBase === 'semanal') {
+      ventaProyectada = Math.max(v.v7, promDia * 7);
+      compraSugerida  = Math.ceil(ventaProyectada - stock);
+      motivo = 'reposicion semanal';
+    }
+    // Regla 4 (lento reactivado) + Regla 6 (mensual) — resto del almacén
+    else {
+      if (v.v30 === 0) return; // sin venta en 30d → no reportar
+      if (v.v30 === 1 && stock === 0) {
+        // Lento pero reactivado: una sola venta en 30d, sin stock confirmado
+        compraSugerida=1; ventaProyectada=1;
+        motivo='lento reactivado'; periodo='reactivacion';
+      } else if (v.v30 > 1) {
+        ventaProyectada = Math.max(v.v30, promDia * 30);
+        compraSugerida  = Math.ceil(ventaProyectada - stock);
+        motivo = 'reposicion mensual';
+      } else {
+        return; // v30=1 pero stock>0 → no es urgente
+      }
+    }
+
+    // Descartar si la sugerencia calculada es ≤0 (ceil ya aplicado en cada rama).
+    // Para diario con stock=0 el piso de 1 está garantizado arriba — nunca llega aquí con 0.
+    if (compraSugerida !== null && compraSugerida < 1) return;
+
+    var esPausado = raw.stockInfo && raw.stockInfo['__pausado__' + nombre.toUpperCase()] === true;
+    filas.push({
+      nombre: nombre,
+      cat: cat,
+      pausado: esPausado,
+      stock: stock !== null ? stock : -1, // -1 = sin datos de stock
+      v7:  Math.round(v.v7 *10)/10,
+      v30: Math.round(v.v30*10)/10,
+      v60: Math.round(v.v60*10)/10,
+      v90: Math.round(v.v90*10)/10,
+      promDia: Math.round(promDia*100)/100,
+      diasVenc: diasVenc !== undefined ? diasVenc : null,
+      periodo: periodo,
+      ventaProyectada: Math.round(ventaProyectada*10)/10,
+      compraSugerida: compraSugerida !== null ? Math.ceil(compraSugerida) : null,
+      motivo: motivo
+    });
+  });
+
+  // Orden grupos: diario > especial > semanal > reactivacion > mensual > sin dato al final
+  // Dentro de cada grupo: mayor rotación primero (promDia desc), luego menor stock (más urgente)
+  var ORD = {diario:0, especial:1, semanal:2, reactivacion:3, mensual:4};
+  filas.sort(function(a,b) {
+    // Pausados siempre al final
+    if (a.pausado !== b.pausado) return a.pausado ? 1 : -1;
+    var aSD = a.compraSugerida === null, bSD = b.compraSugerida === null;
+    if (aSD !== bSD) return aSD ? 1 : -1;
+    var oa = ORD[a.periodo] !== undefined ? ORD[a.periodo] : 4;
+    var ob = ORD[b.periodo] !== undefined ? ORD[b.periodo] : 4;
+    if (oa !== ob) return oa - ob;
+    // Mismo período: alta rotación primero
+    if (Math.abs(b.promDia - a.promDia) > 0.01) return b.promDia - a.promDia;
+    // Mismo promDia: menor stock primero (más urgente)
+    var sa = a.stock === -1 ? 9999 : a.stock;
+    var sb = b.stock === -1 ? 9999 : b.stock;
+    return sa - sb;
+  });
+
+  var nSinStock = filas.filter(function(p){return p.compraSugerida===null;}).length;
+  return {filas:filas, nMuertos:nMuertos, nVencOmit:nVencOmit, nSinStock:nSinStock};
+}
+
+// Genera el HTML completo de la sección Compra Sugerida
+function renderCompraSugerida() {
+  if (!raw) return '<div class="empty">Sin datos</div>';
+  var res = calcularMotorCSI();
+  var todos = res.filas, nMuertos = res.nMuertos, nVencOmit = res.nVencOmit, nSinStock = res.nSinStock;
+  var ORDEN_PERIODO = { diario:0, reactivacion:1, semanal:2, mensual:3, especial:4 };
+  todos.sort(function(a,b){
+    var aSD=a.compraSugerida===null,bSD=b.compraSugerida===null;
+    if(aSD!==bSD) return aSD?1:-1;
+    var oa=ORDEN_PERIODO[a.periodo]!==undefined?ORDEN_PERIODO[a.periodo]:9;
+    var ob=ORDEN_PERIODO[b.periodo]!==undefined?ORDEN_PERIODO[b.periodo]:9;
+    if(oa!==ob) return oa-ob;
+    return (a.stock===-1?9999:a.stock)-(b.stock===-1?9999:b.stock);
+  });
+  var nDia=todos.filter(function(p){return p.periodo==='diario';}).length;
+  var nSem=todos.filter(function(p){return p.periodo==='semanal';}).length;
+  var nMen=todos.filter(function(p){return p.periodo==='mensual';}).length;
+  var nEsp=todos.filter(function(p){return p.periodo==='especial';}).length;
+  var nRea=todos.filter(function(p){return p.periodo==='reactivacion';}).length;
+  var resumen='<div class="csi-resumen">'+
+    '<div class="csi-stat"><div class="csi-stat-v">'+todos.length+'</div><div class="csi-stat-l">Total sugeridos</div></div>'+
+    (nDia?'<div class="csi-stat" style="border-top:3px solid #4a148c"><div class="csi-stat-v" style="color:#4a148c">'+nDia+'</div><div class="csi-stat-l">🍞 Diario</div></div>':'')+
+    '<div class="csi-stat csi-sem"><div class="csi-stat-v">'+nSem+'</div><div class="csi-stat-l">🥛 Semanal</div></div>'+
+    '<div class="csi-stat csi-men"><div class="csi-stat-v">'+nMen+'</div><div class="csi-stat-l">📦 Mensual</div></div>'+
+    '<div class="csi-stat csi-esp"><div class="csi-stat-v">'+nEsp+'</div><div class="csi-stat-l">💻 Especial</div></div>'+
+    '<div class="csi-stat csi-rea"><div class="csi-stat-v">'+nRea+'</div><div class="csi-stat-l">⚡ Reactiv.</div></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-size:.65rem;color:var(--gris)">'+
+    '<span>🚫 Omitidos sin ventas 90d: <strong>'+nMuertos+'</strong></span>'+
+    '<span>⏰ Omitidos por vencer próximo: <strong>'+nVencOmit+'</strong></span>'+
+    (nSinStock?'<span style="color:var(--naranja)">⚠️ Sin dato de stock: <strong>'+nSinStock+'</strong></span>':'')+
+    '</div>';
+  var filtros='<div class="chips-wrap" style="margin-bottom:10px">'+
+    ['todos','diario','semanal','mensual','especial','reactivacion'].map(function(f){
+      var lbl={todos:'📋 Todos',diario:'🍞 Diario',semanal:'🥛 Semanal',mensual:'📦 Mensual',especial:'💻 Especial',reactivacion:'⚡ Reactiv.'}[f];
+      var cnt={todos:todos.length,diario:nDia,semanal:nSem,mensual:nMen,especial:nEsp,reactivacion:nRea}[f];
+      if(cnt===0&&f!=='todos') return '';
+      return '<button class="chip'+(csiFiltroPeriodo===f?' activo':'')+'" onclick="csiFiltroPeriodo=\''+f+'\';renderApp()">'+lbl+' ('+cnt+')</button>';
+    }).join('')+'</div>';
+  var lista=csiFiltroPeriodo==='todos'?todos:todos.filter(function(p){return p.periodo===csiFiltroPeriodo;});
+  if(!lista.length) return resumen+filtros+'<div class="empty">✅ Sin sugerencias para este filtro</div>';
+  var BADGE={diario:{cls:'csi-badge-dia',lbl:'🍞 Diario'},semanal:{cls:'csi-badge-sem',lbl:'🥛 Semanal'},mensual:{cls:'csi-badge-men',lbl:'📦 Mensual'},especial:{cls:'csi-badge-esp',lbl:'💻 Especial'},reactivacion:{cls:'csi-badge-rea',lbl:'⚡ Reactiv.'}};
+  var leyenda='<div style="display:flex;gap:10px;align-items:center;background:#f9f9f9;border-radius:12px;padding:8px 12px;margin-bottom:10px;flex-wrap:wrap;">'+
+    '<span style="font-size:.68rem;font-weight:700;color:var(--gris);">Cómo leer cada fila:</span>'+
+    '<span style="display:flex;align-items:center;gap:4px;font-size:.7rem;">'+
+      '<span style="color:var(--rojo);font-weight:900;font-size:1rem;">0</span>'+
+      '<span style="color:var(--gris);">= stock actual</span>'+
+    '</span>'+
+    '<span style="color:var(--gris);font-size:.8rem;">·</span>'+
+    '<span style="display:flex;align-items:center;gap:4px;font-size:.7rem;">'+
+      '<span class="csi-qty" style="font-size:.85rem;">1</span>'+
+      '<span style="color:var(--gris);">= unidades a pedir</span>'+
+    '</span>'+
+  '</div>';
+  var cards=lista.map(function(p,idx){
+    var b=BADGE[p.periodo]||BADGE.mensual;
+    var stkColor=p.stock===-1?'var(--gris)':p.stock===0?'var(--rojo)':p.stock<=2?'var(--naranja)':'var(--verde)';
+    var stkTxt=p.stock===-1?'S/D':String(p.stock);
+    var vdTxt=p.diasVenc!==null?(p.diasVenc<=14?'<span style="color:var(--naranja);font-weight:700">'+p.diasVenc+'d</span>':p.diasVenc+'d'):'—';
+    var compraTxt=p.compraSugerida!==null?'<span class="csi-qty" title="Unidades a pedir">'+p.compraSugerida+'</span>':'<span style="font-size:.7rem;color:var(--naranja);font-weight:700">S/D</span>';
+    var stkLabel='<span style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:1px;">'+
+      '<span style="color:'+stkColor+';font-weight:900;font-size:1rem;line-height:1;">'+stkTxt+'</span>'+
+      '<span style="font-size:.48rem;color:var(--gris);line-height:1;white-space:nowrap;">stock</span>'+
+    '</span>';
+    var pedirLabel='<span style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:1px;">'+
+      compraTxt+
+      '<span style="font-size:.48rem;color:var(--gris);line-height:1;white-space:nowrap;margin-top:1px;">pedir</span>'+
+    '</span>';
+    var nomEnc=safeEnc(p.nombre);
+    var detalle='<div id="csi-det-'+idx+'" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #eee;">'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 12px;margin-bottom:6px;font-size:.72rem;color:var(--gris);">'+
+      '<span>V7d: <b style="color:#333">'+p.v7+'</b></span><span>V30d: <b style="color:#333">'+p.v30+'</b></span><span>V60d: <b style="color:#333">'+p.v60+'</b></span>'+
+      '<span>V90d: <b style="color:#333">'+p.v90+'</b></span><span>P/día: <b style="color:#333">'+p.promDia+'</b></span><span>Venc.: <b>'+vdTxt+'</b></span>'+
+      '</div>'+
+      '<div style="font-size:.7rem;color:var(--gris);font-style:italic;line-height:1.4;margin-bottom:8px;">'+p.motivo+'</div>'+
+      '<button onclick="csiTogglePausado(\''+nomEnc+'\',this)" style="width:100%;padding:7px;border-radius:8px;border:1.5px solid #ddd;background:#fafafa;font-size:.72rem;font-weight:700;cursor:pointer;color:#e53935;">⏸️ Desactivar de lista de compra</button>'+
+      '</div>';
+    var cardStyle = p.pausado
+      ? 'background:#f9f9f9;border-radius:14px;border:1.5px dashed #ddd;padding:12px 14px;margin-bottom:8px;cursor:pointer;opacity:0.6;'
+      : 'background:white;border-radius:14px;border:1.5px solid #eee;padding:12px 14px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.04);';
+    return '<div onclick="csiToggleDetalle('+idx+',event)" style="'+cardStyle+'">'+ 
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+
+      '<span class="badge '+b.cls+'" style="font-size:.62rem;flex-shrink:0;">'+b.lbl+'</span>'+
+      '<span style="font-weight:700;font-size:.88rem;flex:1;min-width:0;word-break:break-word;">'+p.nombre+'</span>'+
+      stkLabel+
+      pedirLabel+'</div>'+
+      '<div style="font-size:.68rem;color:var(--gris);margin-top:3px;">'+p.cat+' · tocá para ver detalle</div>'+
+      detalle+'</div>';
+  }).join('');
+  return resumen+filtros+leyenda+'<div style="margin-top:4px;">'+cards+'</div>'+
+    '<div style="font-size:.6rem;color:var(--gris);padding:6px 2px;line-height:1.6;margin-top:4px">📌 <b>S/D</b>: stock no disponible. Tocá cada producto para detalle y desactivar.</div>';
+}
+
+function csiToggleDetalle(idx,e){
+  if(e&&e.target&&e.target.tagName==='BUTTON') return;
+  var el=document.getElementById('csi-det-'+idx);
+  if(!el) return;
+  el.style.display=el.style.display==='block'?'none':'block';
+}
+
+async function csiTogglePausado(nombreEncoded,btn){
+  var nombre=decodeURIComponent(nombreEncoded);
+  var esPausado=btn.textContent.includes('Reactivar');
+  var nuevo=!esPausado;
+  btn.disabled=true; btn.textContent='⏳ Guardando...';
+  try{
+    var r=await fetch(API_URL+'?action=setPausadoNombre&data='+encodeURIComponent(JSON.stringify({nombre:nombre,pausado:nuevo?'SI':''})),{redirect:'follow',signal:AbortSignal.timeout(8000)});
+    var resp=await r.json();
+    if(resp.success){btn.textContent=nuevo?'▶️ Reactivar en lista de compra':'⏸️ Desactivar de lista de compra';btn.style.color=nuevo?'#2e7d32':'#e53935';btn.style.borderColor=nuevo?'#a5d6a7':'#ddd';}
+    else{btn.textContent='❌ '+(resp.mensaje||'Error');}
+  }catch(e){btn.textContent='❌ Sin conexión';}
+  btn.disabled=false;
+}
+
+
+// ====== FIN COMPRA SUGERIDA INTELIGENTE ======
+
+// ====== RECIÉN LLEGADOS ======
+function renderRecienLlegados(rl) {
+  if(!rl||!rl.length) return '<div class="empty">Sin ingresos en los últimos 3 días</div>';
+  var OFERTAS_REL={1:{lbl:'2x1'},2:{lbl:'3x2'},3:{lbl:'4x3'},4:{lbl:'5x4'},5:{lbl:'6x5'},6:{lbl:'7x6'},10:{lbl:'2da 50%'},11:{lbl:'-10%',pct:10},12:{lbl:'-15%',pct:15},13:{lbl:'-20%',pct:20},14:{lbl:'-25%',pct:25}};
+  return rl.map(function(p){
+    var precioDisplay=p.precio, badgeOferta='';
+    if(p.relampago&&OFERTAS_REL[p.relampago]){
+      var cfg=OFERTAS_REL[p.relampago];
+      badgeOferta='<span style="background:#fff3e0;color:#e65100;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:8px;border:1px solid #ffcc80;">⚡ '+cfg.lbl+'</span>';
+      if(cfg.pct) precioDisplay=Math.round(p.precio*(1-cfg.pct/100));
+    } else if(p.destacada>0){
+      badgeOferta='<span style="background:#fff3e0;color:#ff6f00;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:8px;border:1px solid #ffcc80;">🔥 -'+p.destacada+'%</span>';
+      precioDisplay=Math.round(p.precio*(1-p.destacada/100));
+    } else if(p.especial){
+      badgeOferta='<span style="background:#e1f5fe;color:#0277bd;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:8px;border:1px solid #81d4fa;">⭐ -10%</span>';
+      precioDisplay=Math.round(p.precio*0.9);
+    }
+    var tieneOferta=precioDisplay!==p.precio;
+    var precioHTML=tieneOferta
+      ?'<span style="text-decoration:line-through;color:#bbb;font-size:.75rem;margin-right:4px;">$'+p.precio.toLocaleString('es-AR')+'</span><span style="font-weight:900;color:#2e7d32;font-size:.95rem;">$'+precioDisplay.toLocaleString('es-AR')+'</span>'
+      :'<span style="font-weight:900;font-size:.95rem;color:#333;">$'+p.precio.toLocaleString('es-AR')+'</span>';
+    var stkColor=p.stock<=2?'var(--naranja)':'var(--verde)';
+    return '<div style="background:white;border-radius:12px;border:1.5px solid #b2dfdb;padding:11px 14px;margin-bottom:7px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+      '<span style="font-size:1.1rem;flex-shrink:0;">🆕</span>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-weight:700;font-size:.88rem;word-break:break-word;">'+p.nombre+'</div>'+
+        '<div style="font-size:.68rem;color:var(--gris);margin-top:2px;">'+p.categoria+' · Stock: <span style="color:'+stkColor+';font-weight:700;">'+p.stock+'</span></div>'+
+        (p.fechaIngreso?'<div style="font-size:.63rem;color:#00897b;margin-top:2px;font-weight:600;">📅 Ingresó el '+p.fechaIngreso+'</div>':'')+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;">'+
+        (badgeOferta?'<div style="margin-bottom:3px;">'+badgeOferta+'</div>':'')+
+        precioHTML+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+// ====== FIN RECIÉN LLEGADOS ======
+
+// ====== EXPORTAR EXCEL ======
+function descargarExcel(){
+  if(!raw||!diasSel.size) return;
+  const diasArr=Array.from(diasSel).sort();
+  const {items,totals}=filtrar(diasArr);
+  const stats=calcStats(items,totals);
+  const wb=XLSX.utils.book_new();
+
+  // --- Helpers ---
+  const fmtN=n=>Math.round(n);
+  const periodoLabel=()=>{
+    if(!diasArr.length) return 'Sin selección';
+    if(diasArr.length===1) return diasArr[0];
+    return diasArr[0]+' al '+diasArr[diasArr.length-1]+' ('+diasArr.length+' días)';
+  };
+
+  // ===== HOJA 1: RESUMEN =====
+  const pctG=stats.venta>0?Math.round(stats.ganReal/stats.venta*100):0;
+  const pctGA=stats.venta>0?Math.round(stats.ganAprox/stats.venta*100):0;
+  const wsRes=[
+    ['INFORME PATAGONIA SALVAJE','',''],
+    ['Período',periodoLabel(),''],
+    ['Generado',new Date().toLocaleDateString('es-AR'),''],
+    ['','',''],
+    ['RESUMEN GENERAL','',''],
+    ['Concepto','Valor',''],
+    ['Ventas totales',fmtN(stats.venta),''],
+    ['Ganancia real',fmtN(stats.ganReal),pctG+'%'],
+    ['Ganancia aprox ★',fmtN(stats.ganAprox),pctGA+'%'],
+    ['Cantidad de tickets',stats.nTks,''],
+    ['Días con ventas',diasArr.length,''],
+    ['Ticket promedio',stats.nTks>0?fmtN(stats.venta/stats.nTks):0,''],
+    ['','',''],
+    ['POR MÉTODO DE PAGO','',''],
+    ['Método','Total','% del total'],
+    ...Object.entries(stats.metodos).sort((a,b)=>b[1]-a[1])
+      .map(([m,t])=>[m,fmtN(t),stats.venta>0?Math.round(t/stats.venta*100)+'%':'0%']),
+    ['','',''],
+    ['POR VENDEDOR','',''],
+    ['Vendedor','Total','% del total'],
+    ...Object.values(stats.vendedores).sort((a,b)=>b.total-a.total)
+      .map(({nombre,total})=>[nombre,fmtN(total),stats.venta>0?Math.round(total/stats.venta*100)+'%':'0%']),
+  ];
+  const ws1=XLSX.utils.aoa_to_sheet(wsRes);
+  ws1['!cols']=[{wch:30},{wch:18},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Resumen');
+
+  // ===== HOJA 2: TOP POR VENTA (todos los productos) =====
+  // Reconstruir ranking completo desde items (no limitado a 15)
+  const prodsMap={};
+  items.forEach(i=>{
+    if(!i.nombre) return;
+    if(!prodsMap[i.nombre]) prodsMap[i.nombre]={nombre:i.nombre,qty:0,total:0,ganReal:0,ganAprox:0,conCosto:false,tickets:new Set()};
+    prodsMap[i.nombre].qty+=i.qty||0;
+    prodsMap[i.nombre].total+=i.subtotal||0;
+    prodsMap[i.nombre].ganReal+=i.tieneCosto?(i.gananciaReal||0):0;
+    prodsMap[i.nombre].ganAprox+=i.gananciaAprox||0;
+    if(i.tieneCosto) prodsMap[i.nombre].conCosto=true;
+    prodsMap[i.nombre].tickets.add(i.ticket);
+  });
+  const todosProds=Object.values(prodsMap).map(p=>({...p,qty:Math.round(p.qty*10)/10,tickets:p.tickets.size}));
+  const topVenta=[...todosProds].sort((a,b)=>b.total-a.total);
+  const topGan=[...todosProds].sort((a,b)=>{
+    const ga=a.conCosto?a.ganReal:a.ganAprox;
+    const gb=b.conCosto?b.ganReal:b.ganAprox;
+    return gb-ga;
+  });
+  const totalVentas=stats.venta||1;
+
+  const tvRows=[
+    ['🏆 TOP PRODUCTOS POR VENTA — período: '+periodoLabel()],
+    ['','','','','','',''],
+    ['#','Producto','Unidades vendidas','Venta $','% del total','En tickets','Ganancia $','Tipo ganancia'],
+    ...topVenta.map((p,i)=>{
+      const gan=p.conCosto?p.ganReal:p.ganAprox;
+      const pctV=Math.round(p.total/totalVentas*100);
+      return [i+1, p.nombre, p.qty, fmtN(p.total), pctV+'%', p.tickets, fmtN(gan), p.conCosto?'Real':'Aprox ★'];
+    })
+  ];
+  const ws2=XLSX.utils.aoa_to_sheet(tvRows);
+  ws2['!cols']=[{wch:4},{wch:38},{wch:18},{wch:14},{wch:12},{wch:10},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Top por Venta');
+
+  // ===== HOJA 3: TOP POR GANANCIA (todos los productos) =====
+  const tgRows=[
+    ['💰 TOP PRODUCTOS POR GANANCIA — período: '+periodoLabel()],
+    ['','','','','','',''],
+    ['#','Producto','Ganancia $','Tipo','% margen s/venta','Venta $','Unidades','En tickets'],
+    ...topGan.map((p,i)=>{
+      const gan=p.conCosto?p.ganReal:p.ganAprox;
+      const margen=p.total>0?Math.round(gan/p.total*100):0;
+      return [i+1, p.nombre, fmtN(gan), p.conCosto?'Real':'Aprox ★', margen+'%', fmtN(p.total), p.qty, p.tickets];
+    })
+  ];
+  const ws3=XLSX.utils.aoa_to_sheet(tgRows);
+  ws3['!cols']=[{wch:4},{wch:38},{wch:14},{wch:10},{wch:18},{wch:14},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Top por Ganancia');
+
+
+  // ===== HOJA 4: DETALLE TICKETS =====
+  const tkRows=[['DETALLE DE TICKETS'],['Fecha','N° Ticket','Hora','Vendedor','Método','Total $']];
+  totals.sort((a,b)=>a.fechaStr>b.fechaStr?1:-1).forEach(t=>{
+    tkRows.push([t.fechaStr,t.ticket,t.hora||'',t.vendedor||'',t.metodo||'',fmtN(t.total||0)]);
+  });
+  const ws4tk=XLSX.utils.aoa_to_sheet(tkRows);
+  ws4tk['!cols']=[{wch:12},{wch:10},{wch:8},{wch:16},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws4tk,'Tickets');
+
+  // ===== HOJA 5: DETALLE ITEMS =====
+  const itRows=[['DETALLE DE ITEMS VENDIDOS'],['Fecha','N° Ticket','Producto','Cantidad','Subtotal $','Ganancia $','Con costo']];
+  items.sort((a,b)=>a.fechaStr>b.fechaStr?1:-1).forEach(i=>{
+    itRows.push([
+      i.fechaStr,i.ticket,i.nombre||'',
+      Math.round((i.qty||0)*10)/10,
+      fmtN(i.subtotal||0),
+      fmtN(i.tieneCosto?(i.gananciaReal||0):(i.gananciaAprox||0)),
+      i.tieneCosto?'Sí':'Aprox'
+    ]);
+  });
+  const ws5it=XLSX.utils.aoa_to_sheet(itRows);
+  ws5it['!cols']=[{wch:12},{wch:10},{wch:35},{wch:10},{wch:12},{wch:12},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws5it,'Items Vendidos');
+
+  // ===== HOJA 6: POR DÍA =====
+  const porDiaMap={};
+  totals.forEach(t=>{if(!porDiaMap[t.fechaStr])porDiaMap[t.fechaStr]={venta:0,gan:0,tks:0};porDiaMap[t.fechaStr].venta+=t.total||0;porDiaMap[t.fechaStr].tks++;});
+  items.forEach(i=>{if(!porDiaMap[i.fechaStr])porDiaMap[i.fechaStr]={venta:0,gan:0,tks:0};porDiaMap[i.fechaStr].gan+=i.gananciaAprox||0;});
+  const DOW2=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const diaRows=[['VENTAS POR DÍA'],['Fecha','Día','Venta $','Ganancia $','Tickets']];
+  Object.entries(porDiaMap).sort((a,b)=>a[0]>b[0]?1:-1).forEach(([ds,v])=>{
+    const dow=DOW2[new Date(ds+'T12:00:00').getDay()];
+    diaRows.push([ds,dow,fmtN(v.venta),fmtN(v.gan),v.tks]);
+  });
+  const ws6d=XLSX.utils.aoa_to_sheet(diaRows);
+  ws6d['!cols']=[{wch:12},{wch:6},{wch:14},{wch:14},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws6d,'Por Día');
+
+  // ===== HOJA 7: VENCIMIENTOS =====
+  const venc=raw.vencProximos||[];
+  if(venc.length){
+    const vRows=[['VENCIMIENTOS PRÓXIMOS'],['Producto','Stock','Fecha venc.','Días restantes','Estado']];
+    venc.forEach(v=>vRows.push([v.nombre,v.stock,v.fecha,v.dias,v.vencido?'VENCIDO':v.dias<=3?'URGENTE':v.dias<=7?'MUY PRONTO':'Próximo']));
+    const ws7v=XLSX.utils.aoa_to_sheet(vRows);
+    ws7v['!cols']=[{wch:35},{wch:8},{wch:14},{wch:14},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws7v,'Vencimientos');
+  }
+
+  // --- Nombre del archivo ---
+  const hoy=new Date();
+  const fechaFile=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+  const nombre='Patagonia_Reporte_'+fechaFile+(diasArr.length===1?'_'+diasArr[0]:'')+'.xlsx';
+
+  XLSX.writeFile(wb,nombre);
+}
+// ====== FIN EXPORTAR EXCEL ======
+
+init();
+</script>
+<!-- MODAL DETALLE PRODUCTO -->
+<div class="mprod-overlay" id="mprodOverlay" onclick="if(event.target===this)cerrarModalProd()">
+  <div class="mprod-sheet" id="mprodSheet">
+    <div class="mprod-drag"></div>
+    <div class="mprod-hdr">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="mprod-nombre" id="mprodNombre">—</div>
+        <button onclick="cerrarModalProd()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--gris);padding:0 0 0 10px">✕</button>
+      </div>
+      <div class="mprod-chips" id="mprodChips"></div>
+    </div>
+    <div class="mprod-body" id="mprodBody"></div>
+  </div>
+</div>
+
+</body>
+</html>
