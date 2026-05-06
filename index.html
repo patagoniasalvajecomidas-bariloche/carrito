@@ -7862,8 +7862,8 @@ abrirNuevoProducto = function() {
     <!-- Barra flotante cobrar seleccionados -->
     <div id="barraCobrarSeleccionados" style="display:none;position:absolute;bottom:0;left:0;right:0;background:#1b5e20;padding:12px 16px;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;border-top:2px solid #0a3d0a;">
       <span id="barraTextoSeleccionados" style="color:white;font-weight:700;font-size:0.85rem;flex:1;"></span>
-      <button id="btnWAFlotante" ontouchstart="void(0)" onclick="_abrirRecordatorio()"
-         style="padding:9px 14px;border:none;border-radius:10px;background:#1b5e20;color:white;font-weight:900;font-size:0.85rem;cursor:pointer;">📋 Recordatorio</button>
+      <button id="btnWAFlotante" ontouchstart="void(0)" onclick="generarRecordatorioCanvas()"
+         style="padding:9px 14px;border:none;border-radius:10px;background:#155724;color:white;font-weight:900;font-size:0.85rem;cursor:pointer;">📋 Recordatorio</button>
       <button onclick="abrirCobrarSeleccionados()" style="padding:9px 14px;border:none;border-radius:10px;background:white;color:#2e7d32;font-weight:900;font-size:0.85rem;cursor:pointer;">✅ Cobrar</button>
     </div>
   </div>
@@ -10174,6 +10174,192 @@ function _enviarComprobanteVentaFiado(datosFiado, items, total, ticketNum) {
     }, 600);
 }
 
+
+// ══════════════════════════════════════════════════════════
+// RECORDATORIO CANVAS — ticket visual de deuda por WA
+// ══════════════════════════════════════════════════════════
+let _recCanvas = null;
+
+function generarRecordatorioCanvas() {
+    // Tomar los fiados seleccionados; si no hay selección, tomar todos los pendientes
+    const pendientes = _fiadosPendientes.filter(f => f.estado !== 'PAGADO');
+    let seleccionados = pendientes.filter(f => _fiadosSeleccionados.has(f.idFiado));
+    if (!seleccionados.length) seleccionados = pendientes; // auto-selección si no hay tilde
+    if (!seleccionados.length) { mostrarToast('⚠️ No hay fiados pendientes', 'naranja'); return; }
+
+    const totalDeuda = seleccionados.reduce((s,f) => s + parseFloat(f.total||0), 0);
+    const cliente    = seleccionados[0].cliente || 'Cliente';
+    const hoy        = new Date().toLocaleDateString('es-AR');
+
+    _recCanvas = _dibujarRecordatorioCanvas(seleccionados, cliente, totalDeuda, hoy);
+
+    const wrap = document.getElementById('recCanvasWrap');
+    wrap.innerHTML = '';
+    _recCanvas.style.cssText = 'width:100%;height:auto;border-radius:12px;display:block;';
+    wrap.appendChild(_recCanvas);
+    document.getElementById('modalRecordatorioCanvas').style.display = 'flex';
+}
+
+function cerrarRecordatorioCanvas() {
+    document.getElementById('modalRecordatorioCanvas').style.display = 'none';
+}
+
+async function compartirRecordatorioCanvas() {
+    if (!_recCanvas) return;
+    _recCanvas.toBlob(async blob => {
+        const file = new File([blob], 'recordatorio-patagonia.png', { type:'image/png' });
+        if (navigator.share && navigator.canShare({ files:[file] })) {
+            await navigator.share({ files:[file], title:'📋 Recordatorio de deuda — Patagonia Salvaje' })
+                .catch(()=>{});
+        } else {
+            // Fallback: descargar
+            const a = document.createElement('a');
+            a.download = 'recordatorio-patagonia.png';
+            a.href = _recCanvas.toDataURL('image/png');
+            a.click();
+        }
+    }, 'image/png');
+}
+
+function _dibujarRecordatorioCanvas(fiados, cliente, total, hoy) {
+    const W = 560;
+    const PAD = 24;
+    const HDR = 130;
+    const ROW_H = 110;
+    const FTR = 90;
+    const H = HDR + fiados.length * ROW_H + FTR;
+
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+
+    if (!ctx.roundRect) {
+        ctx.roundRect = function(x,y,w,h,r){
+            this.beginPath();this.moveTo(x+r,y);this.lineTo(x+w-r,y);
+            this.quadraticCurveTo(x+w,y,x+w,y+r);this.lineTo(x+w,y+h-r);
+            this.quadraticCurveTo(x+w,y+h,x+w-r,y+h);this.lineTo(x+r,y+h);
+            this.quadraticCurveTo(x,y+h,x,y+h-r);this.lineTo(x,y+r);
+            this.quadraticCurveTo(x,y,x+r,y);this.closePath();
+        };
+    }
+
+    // ── FONDO ──
+    const bg = ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0, '#0d1f0f');
+    bg.addColorStop(1, '#0a1628');
+    ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+    // Línea superior verde
+    const lineG = ctx.createLinearGradient(0,0,W,0);
+    lineG.addColorStop(0,'rgba(82,232,138,0)');
+    lineG.addColorStop(0.5,'rgba(82,232,138,0.9)');
+    lineG.addColorStop(1,'rgba(82,232,138,0)');
+    ctx.strokeStyle = lineG; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0,3); ctx.lineTo(W,3); ctx.stroke();
+
+    // ── HEADER ──
+    // Logo / nombre
+    ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = 'rgba(82,232,138,0.7)';
+    ctx.textAlign = 'center';
+    ctx.fillText('🛒 PATAGONIA SALVAJE', W/2, 28);
+
+    ctx.font = 'bold 20px sans-serif'; ctx.fillStyle = '#ffffff';
+    ctx.fillText('📋 Recordatorio de Deuda', W/2, 56);
+
+    ctx.font = '13px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText('📅 ' + hoy + '  ·  ' + new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) + 'hs', W/2, 76);
+
+    // Badge cliente
+    const badgeW = Math.min(300, ctx.measureText('👤 ' + cliente).width + 40);
+    ctx.fillStyle = 'rgba(82,232,138,0.12)';
+    ctx.beginPath(); ctx.roundRect(W/2 - badgeW/2, 86, badgeW, 32, 8); ctx.fill();
+    ctx.strokeStyle = 'rgba(82,232,138,0.4)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(W/2 - badgeW/2, 86, badgeW, 32, 8); ctx.stroke();
+    ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#52e88a';
+    ctx.fillText('👤 ' + cliente.toUpperCase(), W/2, 107);
+
+    // Separador
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, HDR-4); ctx.lineTo(W-PAD, HDR-4); ctx.stroke();
+
+    // ── TICKETS ──
+    let y = HDR;
+    fiados.forEach((f, idx) => {
+        const rowBg = idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'rgba(82,232,138,0.03)';
+        ctx.fillStyle = rowBg; ctx.fillRect(0, y, W, ROW_H);
+
+        // Número de ticket
+        ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.textAlign = 'left';
+        ctx.fillText('#' + String(idx+1).padStart(2,'0'), PAD, y+18);
+
+        // Fecha
+        ctx.font = '11px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.textAlign = 'right';
+        ctx.fillText('📅 ' + (f.fecha || ''), W-PAD, y+18);
+
+        // Items
+        ctx.textAlign = 'left';
+        ctx.font = '13px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        const itemsStr = (f.items || []).map(i => i.qty + 'x ' + (i.name||'').toUpperCase()).join('  ·  ');
+        const maxW = W - PAD*2;
+        // truncar si es muy largo
+        let displayItems = itemsStr;
+        while (ctx.measureText(displayItems).width > maxW && displayItems.length > 10) {
+            displayItems = displayItems.slice(0,-4) + '...';
+        }
+        ctx.fillText(displayItems, PAD, y+40);
+
+        // Precio
+        ctx.font = 'bold 28px sans-serif';
+        ctx.fillStyle = '#f9a825';
+        ctx.textAlign = 'right';
+        ctx.fillText('$' + Math.round(parseFloat(f.total||0)).toLocaleString('es-AR'), W-PAD, y+72);
+
+        // Badge PENDIENTE
+        ctx.fillStyle = 'rgba(249,168,37,0.15)';
+        ctx.beginPath(); ctx.roundRect(PAD, y+50, 90, 22, 6); ctx.fill();
+        ctx.strokeStyle = 'rgba(249,168,37,0.5)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(PAD, y+50, 90, 22, 6); ctx.stroke();
+        ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = '#f9a825'; ctx.textAlign = 'center';
+        ctx.fillText('⏳ PENDIENTE', PAD+45, y+65);
+
+        // Separador
+        if (idx < fiados.length-1) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(PAD, y+ROW_H-1); ctx.lineTo(W-PAD, y+ROW_H-1); ctx.stroke();
+        }
+        ctx.textAlign = 'left';
+        y += ROW_H;
+    });
+
+    // ── FOOTER — TOTAL ──
+    ctx.fillStyle = 'rgba(82,232,138,0.08)'; ctx.fillRect(0, y, W, FTR);
+    ctx.strokeStyle = 'rgba(82,232,138,0.3)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, y+1); ctx.lineTo(W, y+1); ctx.stroke();
+
+    ctx.font = '14px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText(fiados.length + ' compra' + (fiados.length>1?'s':'') + ' pendiente' + (fiados.length>1?'s':''), PAD, y+28);
+
+    ctx.font = 'bold 36px sans-serif'; ctx.fillStyle = '#52e88a';
+    ctx.shadowColor = 'rgba(82,232,138,0.4)'; ctx.shadowBlur = 14;
+    ctx.textAlign = 'right';
+    ctx.fillText('$' + Math.round(total).toLocaleString('es-AR'), W-PAD, y+68);
+    ctx.shadowBlur = 0;
+
+    ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.textAlign = 'left';
+    ctx.fillText('TOTAL ADEUDADO', PAD, y+68);
+
+    // Línea inferior
+    ctx.strokeStyle = lineG; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, H-3); ctx.lineTo(W, H-3); ctx.stroke();
+
+    ctx.textAlign = 'left';
+    return cv;
+}
+
 </script>
 
 
@@ -10200,6 +10386,37 @@ function _enviarComprobanteVentaFiado(datosFiado, items, total, ticketNum) {
       <button onclick="cerrarModalHorario()" style="flex:1;padding:11px;border-radius:10px;border:none;background:#2a2a3e;color:#aaa;font-weight:700;font-size:0.88rem;cursor:pointer;">Cancelar</button>
     </div>
     <div id="horarioSaveMsg" style="text-align:center;font-size:0.78rem;min-height:18px;margin-top:8px;color:#52e88a;"></div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL RECORDATORIO CANVAS ═══════════ -->
+<div id="modalRecordatorioCanvas" onclick="if(event.target===this)cerrarRecordatorioCanvas()" 
+     style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.82);
+            align-items:center;justify-content:center;flex-direction:column;padding:16px;">
+  <div style="background:#1a1a2e;border-radius:20px;width:100%;max-width:380px;
+              border:1.5px solid rgba(82,232,138,0.3);overflow:hidden;">
+    <div style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;
+                background:#0d1f0f;border-bottom:1px solid rgba(82,232,138,0.15);">
+      <span style="font-weight:900;font-size:1rem;color:#52e88a;">📋 Recordatorio de deuda</span>
+      <button onclick="cerrarRecordatorioCanvas()" 
+              style="background:none;border:none;color:#aaa;font-size:1.3rem;cursor:pointer;">✕</button>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:60vh;" id="recCanvasWrap">
+      <!-- canvas se inserta acá -->
+    </div>
+    <div style="padding:12px 16px;display:flex;gap:10px;background:#0d1f0f;
+                border-top:1px solid rgba(82,232,138,0.15);">
+      <button onclick="compartirRecordatorioCanvas()"
+              style="flex:1;padding:12px;border-radius:12px;border:none;
+                     background:#1b5e20;color:white;font-weight:900;font-size:0.9rem;cursor:pointer;">
+        📤 Compartir / WA
+      </button>
+      <button onclick="cerrarRecordatorioCanvas()"
+              style="flex:0 0 auto;padding:12px 18px;border-radius:12px;border:none;
+                     background:#2a2a3e;color:#aaa;font-weight:700;font-size:0.9rem;cursor:pointer;">
+        Cerrar
+      </button>
+    </div>
   </div>
 </div>
 </body>
