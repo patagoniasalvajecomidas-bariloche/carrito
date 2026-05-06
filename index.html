@@ -10181,23 +10181,17 @@ function _enviarComprobanteVentaFiado(datosFiado, items, total, ticketNum) {
 let _recCanvas = null;
 
 function generarRecordatorioCanvas() {
-    // Tomar los fiados seleccionados; si no hay selección, tomar todos los pendientes
+    // Tomar fiados seleccionados; si no hay, tomar todos los pendientes
     const pendientes = _fiadosPendientes.filter(f => f.estado !== 'PAGADO');
     let seleccionados = pendientes.filter(f => _fiadosSeleccionados.has(f.idFiado));
-    if (!seleccionados.length) seleccionados = pendientes; // auto-selección si no hay tilde
+    if (!seleccionados.length) seleccionados = pendientes;
     if (!seleccionados.length) { mostrarToast('⚠️ No hay fiados pendientes', 'naranja'); return; }
 
-    const totalDeuda = seleccionados.reduce((s,f) => s + parseFloat(f.total||0), 0);
-    const cliente    = seleccionados[0].cliente || 'Cliente';
-    const hoy        = new Date().toLocaleDateString('es-AR');
+    // Obtener nombre del cliente y abrir reportes con filtro
+    const cliente = (seleccionados[0].cliente || '').trim();
+    if (!cliente) { mostrarToast('⚠️ Cliente sin nombre', 'naranja'); return; }
 
-    _recCanvas = _dibujarRecordatorioCanvas(seleccionados, cliente, totalDeuda, hoy);
-
-    const wrap = document.getElementById('recCanvasWrap');
-    wrap.innerHTML = '';
-    _recCanvas.style.cssText = 'width:100%;height:auto;border-radius:12px;display:block;';
-    wrap.appendChild(_recCanvas);
-    document.getElementById('modalRecordatorioCanvas').style.display = 'flex';
+    window.open('patagonia-reportes.html?fiado=' + encodeURIComponent(cliente.toLowerCase()), '_blank');
 }
 
 function cerrarRecordatorioCanvas() {
