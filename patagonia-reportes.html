@@ -2052,7 +2052,7 @@ function _renderPanelFiado(clienteFiltro) {
     // Tickets pagados (colapsable)
     (pagados.length > 0 ?
       '<div style="margin-top:16px;">'+
-        '<div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"'+
+        '<div onclick="var el=this.nextElementSibling;el.style.display=el.style.display===\'none\'?\'block\':\'none\'"'+
           ' style="font-size:.75rem;font-weight:700;color:#2e7d32;cursor:pointer;margin-bottom:8px;'+
           'letter-spacing:.5px;user-select:none;">'+
           '✅ COBRADOS ('+pagados.length+') — toca para ver ▼</div>'+
