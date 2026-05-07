@@ -8582,8 +8582,8 @@ function _renderPanelFiados() {
         const vencido = f.estado === 'VENCIDO';
         const vencFecha = f.fechaVencimiento ? (() => { const s = String(f.fechaVencimiento).trim(); const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T12:00:00") : new Date(s); return isNaN(d) ? null : d; })() : null;
         const diasRest = vencFecha && !isNaN(vencFecha) ? Math.round((vencFecha - hoy) / 86400000) : null;
-        const colorBorde = esPendiente ? (vencido ? '#ef9a9a' : '#ffe082') : '#c8e6c9';
-        const colorFondo = esPendiente ? (vencido ? '#fff5f5' : '#fffde7') : '#f1f8e9';
+        const colorBorde = esPendiente ? (vencido ? '#c62828' : '#f57f17') : '#388e3c';
+        const colorFondo = esPendiente ? (vencido ? '#ffebee' : '#fff8e1') : '#f1f8e9';
         const checked = _fiadosSeleccionados.has(f.idFiado) ? 'checked' : '';
 
         const estadoBadge = !esPendiente
@@ -8592,7 +8592,7 @@ function _renderPanelFiados() {
                 ? `<span style="background:#b71c1c;color:white;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:8px;">🔴 VENCIDO</span>`
                 : (diasRest !== null
                     ? `<span style="background:#f57f17;color:white;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:8px;">⏰ ${diasRest === 0 ? 'Vence HOY' : diasRest < 0 ? 'Venció hace ' + Math.abs(diasRest) + 'd' : 'Vence en ' + diasRest + 'd'}</span>`
-                    : `<span style="background:#888;color:white;font-size:0.65rem;padding:2px 7px;border-radius:8px;">PENDIENTE</span>`);
+                    : `<span style="background:#e65100;color:white;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:8px;">⏳ PENDIENTE</span>`);
 
         const botonesHtml = esPendiente ? `` : `
             <div style="font-size:0.72rem;color:#388e3c;margin-top:4px;">
@@ -8639,10 +8639,27 @@ function _renderPanelFiados() {
         }
 
         if (pagados.length) {
-            html += `<div style="font-size:0.75rem;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;padding:12px 4px 6px;">
-                        ── Cobrados (${pagados.length}) ──
+            const MAX_PAG = 3;
+            const visible = pagados.slice(0, MAX_PAG);
+            const ocultos = pagados.slice(MAX_PAG);
+            html += `<div style="font-size:0.75rem;font-weight:700;color:#388e3c;letter-spacing:1px;text-transform:uppercase;padding:12px 4px 6px;">
+                        ── ✅ Cobrados (${pagados.length}) ──
                      </div>`;
-            html += pagados.map((f, i) => _renderTarjeta(f, i, false)).join('');
+            html += visible.map((f, i) => _renderTarjeta(f, i, false)).join('');
+            if (ocultos.length) {
+                html += `<div id="fiados-ver-mas" style="text-align:center;padding:10px;">
+                    <button onclick="
+                        document.getElementById('fiados-ocultos').style.display='block';
+                        document.getElementById('fiados-ver-mas').style.display='none';
+                    " style="background:none;border:1.5px solid #aaa;color:#666;border-radius:20px;
+                             padding:6px 18px;font-size:0.78rem;cursor:pointer;">
+                        Ver ${ocultos.length} más ▼
+                    </button>
+                </div>
+                <div id="fiados-ocultos" style="display:none;">
+                    ${ocultos.map((f, i) => _renderTarjeta(f, i, false)).join('')}
+                </div>`;
+            }
         }
     }
 
