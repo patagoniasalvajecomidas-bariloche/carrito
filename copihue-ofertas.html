@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Ofertas — Copihue</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f12;
+    --surface: #18181f;
+    --surface2: #22222c;
+    --surface3: #2c2c38;
+    --border: #333345;
+    --text: #e8e8f0;
+    --muted: #7878a0;
+    --accent: #ff6b35;
+
+    --sin:      #4a4a5a;
+    --sin-glow: #6b6b8a;
+    --dest:     #ff8c00;
+    --dest-glow:#ffb347;
+    --esp:      #00b4d8;
+    --esp-glow: #48cae4;
+    --rel:      #f0c040;
+    --rel-glow: #ffd966;
+
+    --suave:  #52d48a;
+    --medium: #f5a623;
+    --fuerte: #e84040;
+
+    --radius: 10px;
+    --trans: .18s ease;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--dest), var(--rel));
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 16px; color: #000;
+  }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px; font-weight: 800;
+    letter-spacing: -.5px;
+  }
+  header h1 span { color: var(--dest); }
+  .header-right {
+    margin-left: auto;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .badge-version {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    background: var(--surface2);
+    padding: 3px 8px; border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── LAYOUT ── */
+  .main-wrap {
+    display: flex;
+    gap: 0;
+    flex: 1;
+  }
+
+  /* ── PRODUCT LIST (left panel) ── */
+  .panel-list {
+    width: 320px;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 65px);
+    position: sticky;
+    top: 65px;
+    overflow: hidden;
+  }
+  .panel-list-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 12px;
+  }
+  .search-box svg { color: var(--muted); flex-shrink: 0; }
+  .search-box input {
+    background: none; border: none; outline: none;
+    color: var(--text); font-size: 13px; width: 100%;
+    font-family: 'Inter', sans-serif;
+  }
+  .filter-row {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .filter-chip {
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    border: 1px solid transparent; transition: var(--trans);
+    background: var(--surface3); color: var(--muted);
+    user-select: none;
+  }
+  .filter-chip.active { color: #000; border-color: transparent; }
+  .filter-chip.fc-all.active  { background: var(--text); color: var(--bg); }
+  .filter-chip.fc-dest.active { background: var(--dest); }
+  .filter-chip.fc-esp.active  { background: var(--esp); }
+  .filter-chip.fc-rel.active  { background: var(--rel); }
+  .filter-chip.fc-sin.active  { background: var(--sin-glow); color: var(--text); }
+
+  .product-list {
+    flex: 1; overflow-y: auto; padding: 8px;
+  }
+  .product-list::-webkit-scrollbar { width: 4px; }
+  .product-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .prod-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: var(--trans);
+    border: 1px solid transparent;
+    margin-bottom: 3px;
+  }
+  .prod-item:hover { background: var(--surface2); }
+  .prod-item.active { background: var(--surface2); border-color: var(--border); }
+
+  .prod-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .prod-dot.dot-dest  { background: var(--dest); box-shadow: 0 0 6px var(--dest); }
+  .prod-dot.dot-esp   { background: var(--esp);  box-shadow: 0 0 6px var(--esp); }
+  .prod-dot.dot-rel   { background: var(--rel);  box-shadow: 0 0 6px var(--rel); }
+  .prod-dot.dot-sin   { background: var(--sin-glow); }
+
+  .prod-info { flex: 1; min-width: 0; }
+  .prod-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prod-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  .prod-tag {
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 20px; flex-shrink: 0; letter-spacing: .4px;
+  }
+  .tag-dest  { background: rgba(255,140,0,.15);  color: var(--dest); border: 1px solid rgba(255,140,0,.3); }
+  .tag-esp   { background: rgba(0,180,216,.15);  color: var(--esp);  border: 1px solid rgba(0,180,216,.3); }
+  .tag-rel   { background: rgba(240,192,64,.15); color: var(--rel);  border: 1px solid rgba(240,192,64,.3); }
+  .tag-sin   { background: var(--surface3);       color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── EDITOR (right panel) ── */
+  .panel-editor {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+  }
+
+  .editor-empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; min-height: 400px;
+    gap: 14px; color: var(--muted); text-align: center;
+  }
+  .editor-empty svg { opacity: .3; }
+  .editor-empty p { font-size: 14px; max-width: 240px; line-height: 1.5; }
+
+  .editor-form { display: flex; flex-direction: column; gap: 0; max-width: 640px; }
+
+  /* ── SECTIONS ── */
+  .section-block {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    background: var(--surface);
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--trans);
+  }
+  .section-header:hover { background: var(--surface2); }
+  .section-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface3);
+    display: grid; place-items: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    color: var(--muted); flex-shrink: 0;
+  }
+  .section-block.done .section-num { background: #1a3a2a; color: var(--suave); }
+  .section-title { font-size: 13px; font-weight: 600; }
+  .section-summary { margin-left: auto; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .section-chevron {
+    width: 16px; transition: transform var(--trans);
+    color: var(--muted);
+  }
+  .section-block.open .section-chevron { transform: rotate(180deg); }
+
+  .section-body {
+    display: none;
+    padding: 4px 16px 16px;
+    border-top: 1px solid var(--border);
+    animation: fadeIn .15s ease;
+  }
+  .section-block.open .section-body { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
+
+  /* ── FORM FIELDS ── */
+  .field-row {
+    display: flex; gap: 10px; margin-top: 12px;
+  }
+  .field {
+    flex: 1; display: flex; flex-direction: column; gap: 5px;
+  }
+  .field label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 10px 12px;
+    font-family: 'DM Mono', monospace;
+    transition: border-color var(--trans);
+    outline: none;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: var(--dest); }
+  .field select option { background: var(--surface2); }
+
+  /* ── OFFER TYPE SELECTOR ── */
+  .offer-type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .offer-type-card {
+    padding: 16px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: all var(--trans);
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--surface2);
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+  }
+  .offer-type-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    opacity: 0; transition: opacity var(--trans);
+  }
+  .offer-type-card:hover { transform: translateY(-1px); }
+
+  .offer-type-card.ot-sin::before   { background: linear-gradient(135deg, rgba(74,74,90,.3), transparent); }
+  .offer-type-card.ot-dest::before  { background: linear-gradient(135deg, rgba(255,140,0,.12), transparent); }
+  .offer-type-card.ot-esp::before   { background: linear-gradient(135deg, rgba(0,180,216,.12), transparent); }
+  .offer-type-card.ot-rel::before   { background: linear-gradient(135deg, rgba(240,192,64,.12), transparent); }
+
+  .offer-type-card.ot-sin.selected   { border-color: var(--sin-glow);  background: rgba(74,74,90,.2); }
+  .offer-type-card.ot-dest.selected  { border-color: var(--dest);      background: rgba(255,140,0,.08); }
+  .offer-type-card.ot-esp.selected   { border-color: var(--esp);       background: rgba(0,180,216,.08); }
+  .offer-type-card.ot-rel.selected   { border-color: var(--rel);       background: rgba(240,192,64,.08); }
+  .offer-type-card.selected::before  { opacity: 1; }
+
+  .ot-icon {
+    font-size: 22px; line-height: 1;
+    position: relative; z-index: 1;
+  }
+  .ot-name {
+    font-size: 13px; font-weight: 700;
+    position: relative; z-index: 1;
+  }
+  .ot-desc {
+    font-size: 11px; color: var(--muted); line-height: 1.4;
+    position: relative; z-index: 1;
+  }
+  .ot-check {
+    position: absolute; top: 10px; right: 10px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--suave); display: none;
+    place-items: center;
+  }
+  .offer-type-card.selected .ot-check { display: grid; }
+
+  /* ── OFFER SUBCONFIG ── */
+  .offer-subconfig {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    animation: fadeIn .2s ease;
+  }
+  .offer-subconfig-header {
+    padding: 12px 14px;
+    font-size: 12px; font-weight: 700; letter-spacing: .5px;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .offer-subconfig-body { padding: 14px; }
+
+  /* ── LEVEL SELECTOR (suave/medium/fuerte) ── */
+  .level-selector {
+    display: flex; gap: 8px; margin-bottom: 14px;
+  }
+  .level-btn {
+    flex: 1; padding: 10px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--surface2);
+    cursor: pointer;
+    text-align: center;
+    transition: all var(--trans);
+    user-select: none;
+  }
+  .level-btn .lv-icon { font-size: 16px; }
+  .level-btn .lv-name { font-size: 12px; font-weight: 700; margin-top: 4px; }
+  .level-btn .lv-hint { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .level-btn:hover { transform: translateY(-1px); }
+
+  .level-btn.lv-suave.selected  { border-color: var(--suave);  background: rgba(82,212,138,.08); }
+  .level-btn.lv-suave.selected .lv-name { color: var(--suave); }
+  .level-btn.lv-medium.selected { border-color: var(--medium); background: rgba(245,166,35,.08); }
+  .level-btn.lv-medium.selected .lv-name { color: var(--medium); }
+  .level-btn.lv-fuerte.selected { border-color: var(--fuerte); background: rgba(232,64,64,.08); }
+  .level-btn.lv-fuerte.selected .lv-name { color: var(--fuerte); }
+
+  /* ── TOGGLE SWITCHES ── */
+  .toggle-group { display: flex; flex-direction: column; gap: 10px; }
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .toggle-label { font-size: 13px; }
+  .toggle-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .toggle-switch {
+    position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--surface3);
+    border-radius: 22px; cursor: pointer;
+    transition: var(--trans);
+    border: 1px solid var(--border);
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 2px; top: 2px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: var(--trans);
+  }
+  .toggle-switch input:checked + .toggle-slider { background: rgba(0,180,216,.25); border-color: var(--esp); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--esp); }
+
+  /* ── RELAMPAGO VARIANTS ── */
+  .relampago-variants {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .variant-card {
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--trans);
+    display: flex; align-items: center; gap: 12px;
+    user-select: none;
+  }
+  .variant-card:hover { border-color: var(--rel); }
+  .variant-card.selected { border-color: var(--rel); background: rgba(240,192,64,.06); }
+  .variant-icon { font-size: 18px; }
+  .variant-info { flex: 1; }
+  .variant-name { font-size: 13px; font-weight: 600; }
+  .variant-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .variant-badge {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 20px;
+    background: rgba(240,192,64,.15); color: var(--rel);
+    border: 1px solid rgba(240,192,64,.3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── DESTACADA SUBCONFIG ── */
+  .dest-options { display: flex; flex-direction: column; gap: 8px; }
+  .dest-option {
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--trans);
+    display: flex; align-items: center; gap: 12px;
+    user-select: none;
+  }
+  .dest-option:hover { border-color: var(--dest); }
+  .dest-option.selected { border-color: var(--dest); background: rgba(255,140,0,.06); }
+  .dest-option-icon { font-size: 18px; }
+  .dest-option-name { font-size: 13px; font-weight: 600; flex: 1; }
+  .dest-option-desc { font-size: 11px; color: var(--muted); }
+
+  /* ── ACTION BUTTONS ── */
+  .action-bar {
+    display: flex; gap: 10px; margin-top: 6px;
+    justify-content: flex-end;
+  }
+  .btn {
+    padding: 11px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: all var(--trans);
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--dest), #ff8f3f);
+    color: #000;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-danger {
+    background: rgba(232,64,64,.12);
+    color: var(--fuerte);
+    border: 1px solid rgba(232,64,64,.3);
+  }
+  .btn-danger:hover { background: rgba(232,64,64,.2); }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    transform: translateY(20px); opacity: 0;
+    transition: all .25s ease;
+    pointer-events: none; z-index: 999;
+    display: flex; align-items: center; gap: 10px;
+    max-width: 320px;
+  }
+  #toast.show { transform: none; opacity: 1; }
+  #toast.success { border-color: var(--suave); }
+  #toast.error   { border-color: var(--fuerte); }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+  /* ── LEVEL HINT BOX ── */
+  .level-hint-box {
+    padding: 10px 12px;
+    background: var(--surface3);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    border-left: 3px solid transparent;
+    transition: border-color var(--trans);
+    line-height: 1.5;
+  }
+  .hint-suave  { border-left-color: var(--suave);  }
+  .hint-medium { border-left-color: var(--medium); }
+  .hint-fuerte { border-left-color: var(--fuerte); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .panel-list { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); max-height: 260px; }
+    .main-wrap { flex-direction: column; }
+    .panel-editor { padding: 16px; }
+    .offer-type-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════ HEADER ════════════ -->
+<header>
+  <div class="logo-mark">C</div>
+  <h1>Copihue <span>Ofertas</span></h1>
+  <div class="header-right">
+    <span class="badge-version">v1.0</span>
+    <button class="btn btn-ghost" onclick="refreshList()" title="Actualizar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+      Actualizar
+    </button>
+  </div>
+</header>
+
+<!-- ════════════ MAIN ════════════ -->
+<div class="main-wrap">
+
+  <!-- LEFT: product list -->
+  <aside class="panel-list">
+    <div class="panel-list-header">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Buscar producto..." oninput="filterProducts()">
+      </div>
+      <div class="filter-row" id="filterRow">
+        <span class="filter-chip fc-all active" data-filter="all"    onclick="setFilter('all',this)">Todos</span>
+        <span class="filter-chip fc-dest"       data-filter="dest"   onclick="setFilter('dest',this)">Dest.</span>
+        <span class="filter-chip fc-esp"        data-filter="esp"    onclick="setFilter('esp',this)">Espec.</span>
+        <span class="filter-chip fc-rel"        data-filter="rel"    onclick="setFilter('rel',this)">Relamp.</span>
+        <span class="filter-chip fc-sin"        data-filter="sin"    onclick="setFilter('sin',this)">Sin oferta</span>
+      </div>
+    </div>
+    <div class="product-list" id="productList"></div>
+  </aside>
+
+  <!-- RIGHT: editor -->
+  <main class="panel-editor" id="editorPanel">
+    <div class="editor-empty" id="emptyState">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <p>Seleccioná un producto para editar sus datos y tipo de oferta</p>
+    </div>
+    <div class="editor-form" id="editorForm" style="display:none"></div>
+  </main>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+  <span id="toastIcon">✓</span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+// ════════════════════════════════════
+//  DATA MOCK (se reemplaza con GAS)
+// ════════════════════════════════════
+const GAS_URL = typeof __GAS_URL__ !== 'undefined' ? __GAS_URL__ : '';
+
+let products = [
+  { id:'ID001', name:'COMBO CLÁSICO (HAMBU + PAPAS + BEBIDA)',  cat:'COMBOS',       precio:5500,  stock:46, oferta:'dest',  nivelOferta:'suave',  ofertaConfig:{ tipo:'destacada', variante:'naranja' } },
+  { id:'ID002', name:'COMBO DOBLE CARNE (2 HAMBU + PAPAS + BEBIDA)', cat:'COMBOS', precio:8500,  stock:28, oferta:'dest',  nivelOferta:'medium', ofertaConfig:{} },
+  { id:'ID003', name:'COMBO FAMILIAR 4P (4 HAMBU + 2 PAPAS + 4 BEBIDAS)', cat:'COMBOS', precio:18000, stock:6, oferta:'esp', nivelOferta:'fuerte', ofertaConfig:{ interruptores:{ home:true, catalogo:true, destacados:false } } },
+  { id:'ID006', name:'HAMBURGUESA SIMPLE CHEDDAR',  cat:'HAMBURGUESAS', precio:2800, stock:59, oferta:'rel',  nivelOferta:'medium', ofertaConfig:{ variante:'2x1' } },
+  { id:'ID007', name:'HAMBURGUESA DOBLE CHEDDAR',   cat:'HAMBURGUESAS', precio:3800, stock:40, oferta:'rel',  nivelOferta:'suave',  ofertaConfig:{ variante:'3x2' } },
+  { id:'ID013', name:'CHORIPAN SIMPLE',              cat:'CHORIPANES',   precio:2200, stock:72, oferta:'dest', nivelOferta:'medium', ofertaConfig:{} },
+  { id:'ID017', name:'PANCHO SIMPLE',                cat:'PANCHOS',      precio:1800, stock:100,oferta:'dest', nivelOferta:'suave',  ofertaConfig:{} },
+  { id:'ID021', name:'PAPAS FRITAS CHICAS',          cat:'PAPAS',        precio:1200, stock:82, oferta:'sin',  nivelOferta:'',       ofertaConfig:{} },
+  { id:'ID022', name:'PAPAS FRITAS MEDIANAS',        cat:'PAPAS',        precio:1800, stock:80, oferta:'dest', nivelOferta:'medium', ofertaConfig:{} },
+  { id:'ID024', name:'PAPAS FRITAS CON CHEDDAR',     cat:'PAPAS',        precio:2800, stock:38, oferta:'dest', nivelOferta:'fuerte', ofertaConfig:{} },
+  { id:'ID027', name:'COCA COLA 354ML LATA',         cat:'BEBIDAS',      precio:900,  stock:149,oferta:'sin',  nivelOferta:'',       ofertaConfig:{} },
+  { id:'ID033', name:'CERVEZA QUILMES LATA 354ML',   cat:'BEBIDAS',      precio:1200, stock:60, oferta:'esp',  nivelOferta:'suave',  ofertaConfig:{ interruptores:{ home:false, catalogo:true, destacados:true } } },
+];
+
+let activeFilter = 'all';
+let selectedId   = null;
+
+// ════════════════════════════════════
+//  RENDER LIST
+// ════════════════════════════════════
+function renderList() {
+  const q   = document.getElementById('searchInput').value.toLowerCase();
+  const list = document.getElementById('productList');
+  list.innerHTML = '';
+
+  const filtered = products.filter(p => {
+    const matchFilter = activeFilter === 'all' || p.oferta === activeFilter;
+    const matchSearch = p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Sin resultados</div>';
+    return;
+  }
+
+  filtered.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'prod-item' + (p.id === selectedId ? ' active' : '');
+    div.innerHTML = `
+      <div class="prod-dot dot-${p.oferta}"></div>
+      <div class="prod-info">
+        <div class="prod-name">${p.name}</div>
+        <div class="prod-meta">$${p.precio.toLocaleString('es-AR')} · stock ${p.stock}</div>
+      </div>
+      <span class="prod-tag tag-${p.oferta}">${labelOferta(p.oferta)}</span>
+    `;
+    div.onclick = () => selectProduct(p.id);
+    list.appendChild(div);
+  });
+}
+
+function labelOferta(o) {
+  return { dest:'DEST', esp:'ESP', rel:'REL⚡', sin:'—' }[o] || o;
+}
+
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function filterProducts() { renderList(); }
+function refreshList() { renderList(); showToast('Lista actualizada', 'success'); }
+
+// ════════════════════════════════════
+//  SELECT & RENDER EDITOR
+// ════════════════════════════════════
+function selectProduct(id) {
+  selectedId = id;
+  renderList();
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+
+  document.getElementById('emptyState').style.display  = 'none';
+  document.getElementById('editorForm').style.display  = 'flex';
+
+  renderEditor(p);
+}
+
+function renderEditor(p) {
+  const form = document.getElementById('editorForm');
+  form.innerHTML = `
+    <!-- SECTION 1: PRECIO -->
+    <div class="section-block done open" id="sec-precio">
+      <div class="section-header" onclick="toggleSection('sec-precio')">
+        <div class="section-num">1</div>
+        <span class="section-title">Precio</span>
+        <span class="section-summary" id="sum-precio">$${p.precio.toLocaleString('es-AR')}</span>
+        <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Precio de venta ($)</label>
+            <input type="number" id="inp-precio" value="${p.precio}" oninput="updateSum('precio', '$'+Number(this.value).toLocaleString('es-AR'))">
+          </div>
+          <div class="field">
+            <label>Costo ($)</label>
+            <input type="number" id="inp-costo" value="${p.costo||''}" placeholder="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: STOCK -->
+    <div class="section-block done" id="sec-stock">
+      <div class="section-header" onclick="toggleSection('sec-stock')">
+        <div class="section-num">2</div>
+        <span class="section-title">Stock</span>
+        <span class="section-summary" id="sum-stock">${p.stock} unid.</span>
+        <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Cantidad en stock</label>
+            <input type="number" id="inp-stock" value="${p.stock}" oninput="updateSum('stock', this.value+' unid.')">
+          </div>
+          <div class="field">
+            <label>Mínimo alerta</label>
+            <input type="number" id="inp-minstock" value="${p.minstock||5}" placeholder="5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: NOMBRE -->
+    <div class="section-block done" id="sec-nombre">
+      <div class="section-header" onclick="toggleSection('sec-nombre')">
+        <div class="section-num">3</div>
+        <span class="section-title">Nombre</span>
+        <span class="section-summary" id="sum-nombre" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+        <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Nombre del producto</label>
+            <input type="text" id="inp-nombre" value="${p.name}" oninput="updateSum('nombre', this.value)">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>ID producto</label>
+            <input type="text" value="${p.id}" disabled style="opacity:.5;cursor:not-allowed">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: CATEGORÍA -->
+    <div class="section-block done" id="sec-cat">
+      <div class="section-header" onclick="toggleSection('sec-cat')">
+        <div class="section-num">4</div>
+        <span class="section-title">Categoría</span>
+        <span class="section-summary" id="sum-cat">${p.cat}</span>
+        <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Categoría</label>
+            <select id="inp-cat" onchange="updateSum('cat', this.value)">
+              ${['COMBOS','HAMBURGUESAS','CHORIPANES','PANCHOS','PAPAS','BEBIDAS'].map(c =>
+                `<option value="${c}" ${c===p.cat?'selected':''}>${c}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Proveedor</label>
+            <select id="inp-prov">
+              ${['COCINA','BEBIDAS','TREVISAN'].map(v =>
+                `<option value="${v}" ${v===(p.proveedor||'COCINA')?'selected':''}>${v}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5: OFERTA -->
+    <div class="section-block ${p.oferta!=='sin'?'done':''}" id="sec-oferta">
+      <div class="section-header" onclick="toggleSection('sec-oferta')">
+        <div class="section-num">5</div>
+        <span class="section-title">Tipo de Oferta</span>
+        <span class="section-summary" id="sum-oferta">${labelOfertaFull(p.oferta, p.nivelOferta)}</span>
+        <svg class="section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="section-body">
+        <div class="offer-type-grid" id="offerTypeGrid">
+          ${renderOfferTypeCards(p.oferta)}
+        </div>
+        <div id="offerSubconfig"></div>
+      </div>
+    </div>
+
+    <!-- ACTION BAR -->
+    <div class="action-bar">
+      <button class="btn btn-danger" onclick="clearOferta()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Quitar oferta
+      </button>
+      <button class="btn btn-ghost" onclick="cancelEdit()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCambios()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Guardar
+      </button>
+    </div>
+  `;
+
+  // Render subconfig for current oferta
+  renderSubconfig(p.oferta, p.nivelOferta, p.ofertaConfig || {});
+}
+
+function labelOfertaFull(o, n) {
+  const tipos = { dest:'Destacada', esp:'Especial', rel:'Relámpago', sin:'Sin oferta' };
+  if (o === 'sin' || !n) return tipos[o] || '—';
+  return `${tipos[o]} · ${n}`;
+}
+
+function renderOfferTypeCards(selected) {
+  const cards = [
+    { key:'sin',  icon:'➖', name:'Sin oferta',  desc:'Producto regular, sin promoción activa.' },
+    { key:'dest', icon:'🟠', name:'Destacada',   desc:'Resaltada en listado con color naranja.' },
+    { key:'esp',  icon:'🔵', name:'Especial',    desc:'Activada por interruptores. Celeste.' },
+    { key:'rel',  icon:'⚡', name:'Relámpago',   desc:'Oferta por cantidad o porcentaje.' },
+  ];
+  return cards.map(c => `
+    <div class="offer-type-card ot-${c.key} ${selected===c.key?'selected':''}" onclick="selectOfertaType('${c.key}')">
+      <div class="ot-icon">${c.icon}</div>
+      <div class="ot-name">${c.name}</div>
+      <div class="ot-desc">${c.desc}</div>
+      <div class="ot-check">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectOfertaType(tipo) {
+  const p = products.find(x => x.id === selectedId);
+  if (!p) return;
+
+  // Update cards selection
+  document.querySelectorAll('.offer-type-card').forEach(c => {
+    c.classList.toggle('selected', c.classList.contains('ot-'+tipo));
+  });
+
+  // Update summary
+  const nivel = tipo === 'sin' ? '' : (p.nivelOferta || 'suave');
+  document.getElementById('sum-oferta').textContent = labelOfertaFull(tipo, nivel);
+
+  // Render subconfig
+  renderSubconfig(tipo, nivel, p.ofertaConfig || {});
+
+  // Store temp
+  p._tmpOferta = tipo;
+  p._tmpNivel  = nivel;
+}
+
+function renderSubconfig(tipo, nivel, config) {
+  const cont = document.getElementById('offerSubconfig');
+  if (!cont) return;
+
+  if (tipo === 'sin') { cont.innerHTML = ''; return; }
+
+  let subconfigHTML = '';
+
+  if (tipo === 'dest') {
+    subconfigHTML = renderSubDest(nivel, config);
+  } else if (tipo === 'esp') {
+    subconfigHTML = renderSubEsp(nivel, config);
+  } else if (tipo === 'rel') {
+    subconfigHTML = renderSubRel(nivel, config);
+  }
+
+  cont.innerHTML = `
+    <div class="offer-subconfig">
+      <div class="offer-subconfig-header" style="background:${headerBg(tipo)}">
+        <span>${headerIcon(tipo)}</span>
+        <span style="color:${headerColor(tipo)}">${headerTitle(tipo)}</span>
+        <span style="margin-left:auto;font-size:11px;font-weight:400;color:var(--muted)">configuración</span>
+      </div>
+      <div class="offer-subconfig-body">
+        ${renderLevelSelector(tipo, nivel)}
+        ${subconfigHTML}
+      </div>
+    </div>
+  `;
+}
+
+function headerBg(t)    { return { dest:'rgba(255,140,0,.06)', esp:'rgba(0,180,216,.06)', rel:'rgba(240,192,64,.06)' }[t]||''; }
+function headerColor(t) { return { dest:'var(--dest)', esp:'var(--esp)', rel:'var(--rel)' }[t]||''; }
+function headerIcon(t)  { return { dest:'🟠', esp:'🔵', rel:'⚡' }[t]||''; }
+function headerTitle(t) { return { dest:'Destacada', esp:'Especial', rel:'Relámpago' }[t]||''; }
+
+function renderLevelSelector(tipo, nivelActual) {
+  const hints = {
+    suave:  { dest:'Resaltado sutil en listado. Color menos intenso.', esp:'Interruptores secundarios disponibles.', rel:'Descuento menor o combo pequeño.' },
+    medium: { dest:'Destacado con fondo naranja visible.', esp:'Interruptores principales activos.', rel:'Descuento moderado o combo standard.' },
+    fuerte: { dest:'Muy visible, fondo naranja intenso + badge.', esp:'Todos los interruptores activos.', rel:'Descuento alto o combo especial.' },
+  };
+  const nivelActivo = nivelActual || 'suave';
+  const hint = hints[nivelActivo]?.[tipo] || '';
+
+  return `
+    <div class="level-selector">
+      <div class="level-btn lv-suave  ${nivelActivo==='suave' ?'selected':''}" onclick="selectNivel('suave',  '${tipo}')">
+        <div class="lv-icon">🟢</div>
+        <div class="lv-name">Suave</div>
+        <div class="lv-hint">Leve</div>
+      </div>
+      <div class="level-btn lv-medium ${nivelActivo==='medium'?'selected':''}" onclick="selectNivel('medium', '${tipo}')">
+        <div class="lv-icon">🟡</div>
+        <div class="lv-name">Medium</div>
+        <div class="lv-hint">Moderado</div>
+      </div>
+      <div class="level-btn lv-fuerte ${nivelActivo==='fuerte'?'selected':''}" onclick="selectNivel('fuerte', '${tipo}')">
+        <div class="lv-icon">🔴</div>
+        <div class="lv-name">Fuerte</div>
+        <div class="lv-hint">Máximo</div>
+      </div>
+    </div>
+    <div class="level-hint-box hint-${nivelActivo}" id="levelHintBox">${hint}</div>
+  `;
+}
+
+function selectNivel(nivel, tipo) {
+  const p = products.find(x => x.id === selectedId);
+  if (!p) return;
+  p._tmpNivel = nivel;
+
+  // Update buttons
+  document.querySelectorAll('.level-btn').forEach(b => {
+    b.classList.toggle('selected', b.classList.contains('lv-'+nivel));
+  });
+
+  // Update hint
+  const hints = {
+    suave:  { dest:'Resaltado sutil en listado. Color menos intenso.', esp:'Interruptores secundarios disponibles.', rel:'Descuento menor o combo pequeño.' },
+    medium: { dest:'Destacado con fondo naranja visible.', esp:'Interruptores principales activos.', rel:'Descuento moderado o combo standard.' },
+    fuerte: { dest:'Muy visible, fondo naranja intenso + badge.', esp:'Todos los interruptores activos.', rel:'Descuento alto o combo especial.' },
+  };
+  const box = document.getElementById('levelHintBox');
+  if (box) {
+    box.textContent = hints[nivel]?.[tipo] || '';
+    box.className = `level-hint-box hint-${nivel}`;
+  }
+
+  // Update summary
+  document.getElementById('sum-oferta').textContent = labelOfertaFull(tipo, nivel);
+}
+
+// ── DESTACADA subconfig ──
+function renderSubDest(nivel, config) {
+  const sel = config.variante || 'naranja';
+  const opts = [
+    { key:'naranja',  icon:'🟠', name:'Naranja estándar',    desc:'Color naranja, resaltado en listado.' },
+    { key:'fuego',    icon:'🔥', name:'Fuego (pulsante)',     desc:'Animación pulsante llamativa.' },
+    { key:'estrella', icon:'⭐', name:'Con estrella badge',   desc:'Badge de estrella sobre el producto.' },
+    { key:'nuevo',    icon:'🆕', name:'Nuevo / Recomendado', desc:'Badge "Nuevo" o "Recomendado".' },
+  ];
+  return `
+    <div class="dest-options">
+      ${opts.map(o => `
+        <div class="dest-option ${sel===o.key?'selected':''}" onclick="selectDestVariante('${o.key}', this)">
+          <span class="dest-option-icon">${o.icon}</span>
+          <div style="flex:1">
+            <div class="dest-option-name">${o.name}</div>
+            <div class="dest-option-desc">${o.desc}</div>
+          </div>
+          ${sel===o.key ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--dest)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectDestVariante(key, el) {
+  document.querySelectorAll('.dest-option').forEach(d => {
+    d.classList.remove('selected');
+    d.querySelector('svg')?.remove();
+  });
+  el.classList.add('selected');
+  el.insertAdjacentHTML('beforeend', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--dest)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>');
+  const p = products.find(x => x.id === selectedId);
+  if (p) { p.ofertaConfig = p.ofertaConfig || {}; p.ofertaConfig.variante = key; }
+}
+
+// ── ESPECIAL subconfig ──
+function renderSubEsp(nivel, config) {
+  const inter = config.interruptores || { home: false, catalogo: false, destacados: false, pwa: false, whatsapp: false, popup: false };
+  const rows = [
+    { key:'home',       icon:'🏠', name:'Mostrar en Home',         sub:'Visible en página principal del catálogo.' },
+    { key:'catalogo',   icon:'📋', name:'Mostrar en Catálogo',     sub:'Aparece en listado general de productos.' },
+    { key:'destacados', icon:'⭐', name:'Sección Destacados',       sub:'Incluir en sección especial de destacados.' },
+    { key:'pwa',        icon:'📱', name:'Banner PWA',              sub:'Mostrar en banner de la app móvil.' },
+    { key:'whatsapp',   icon:'💬', name:'Notif. WhatsApp',         sub:'Enviar notificación a clientes vía WA.' },
+    { key:'popup',      icon:'📢', name:'Popup al entrar',         sub:'Mostrar popup promocional al cargar.' },
+  ];
+  return `
+    <div class="toggle-group">
+      ${rows.map(r => `
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">${r.icon} ${r.name}</div>
+            <div class="toggle-sub">${r.sub}</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="tog-${r.key}" ${inter[r.key]?'checked':''} onchange="updateInterruptor('${r.key}', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function updateInterruptor(key, val) {
+  const p = products.find(x => x.id === selectedId);
+  if (!p) return;
+  p.ofertaConfig = p.ofertaConfig || {};
+  p.ofertaConfig.interruptores = p.ofertaConfig.interruptores || {};
+  p.ofertaConfig.interruptores[key] = val;
+}
+
+// ── RELÁMPAGO subconfig ──
+function renderSubRel(nivel, config) {
+  const sel = config.variante || '';
+  const variantes = [
+    { key:'2x1',   badge:'2×1',   icon:'🔁', name:'2 por 1',            desc:'Llevás 2 pagás 1.' },
+    { key:'3x2',   badge:'3×2',   icon:'🔁', name:'3 por 2',            desc:'Llevás 3 pagás 2.' },
+    { key:'4x3',   badge:'4×3',   icon:'🔁', name:'4 por 3',            desc:'Llevás 4 pagás 3.' },
+    { key:'5x4',   badge:'5×4',   icon:'🔁', name:'5 por 4',            desc:'Llevás 5 pagás 4.' },
+    { key:'6x5',   badge:'6×5',   icon:'🔁', name:'6 por 5',            desc:'Llevás 6 pagás 5.' },
+    { key:'7x6',   badge:'7×6',   icon:'🔁', name:'7 por 6',            desc:'Llevás 7 pagás 6.' },
+    { key:'10%',   badge:'10%',   icon:'💲', name:'10% descuento',      desc:'Precio reducido 10%.' },
+    { key:'15%',   badge:'15%',   icon:'💲', name:'15% descuento',      desc:'Precio reducido 15%.' },
+    { key:'20%',   badge:'20%',   icon:'💲', name:'20% descuento',      desc:'Precio reducido 20%.' },
+    { key:'25%',   badge:'25%',   icon:'💲', name:'25% descuento',      desc:'Precio reducido 25%.' },
+    { key:'2da50', badge:'2ª50%', icon:'🏷️', name:'2ª unidad al 50%',  desc:'Segunda unidad a mitad de precio.' },
+    { key:'10x9',  badge:'10×9',  icon:'🔁', name:'10 por 9',           desc:'Llevás 10 pagás 9.' },
+  ];
+  return `
+    <div class="relampago-variants">
+      ${variantes.map(v => `
+        <div class="variant-card ${sel===v.key?'selected':''}" onclick="selectRelVariante('${v.key}', this)">
+          <span class="variant-icon">${v.icon}</span>
+          <div class="variant-info">
+            <div class="variant-name">${v.name}</div>
+            <div class="variant-desc">${v.desc}</div>
+          </div>
+          <span class="variant-badge">${v.badge}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectRelVariante(key, el) {
+  document.querySelectorAll('.variant-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const p = products.find(x => x.id === selectedId);
+  if (p) { p.ofertaConfig = p.ofertaConfig || {}; p.ofertaConfig.variante = key; }
+}
+
+// ════════════════════════════════════
+//  SECTION TOGGLE
+// ════════════════════════════════════
+function toggleSection(id) {
+  const block = document.getElementById(id);
+  if (!block) return;
+  block.classList.toggle('open');
+}
+
+function updateSum(field, val) {
+  const el = document.getElementById('sum-'+field);
+  if (el) el.textContent = val;
+}
+
+// ════════════════════════════════════
+//  SAVE / CANCEL
+// ════════════════════════════════════
+function guardarCambios() {
+  const p = products.find(x => x.id === selectedId);
+  if (!p) return;
+
+  p.precio   = Number(document.getElementById('inp-precio').value) || p.precio;
+  p.stock    = Number(document.getElementById('inp-stock').value)  || p.stock;
+  p.name     = document.getElementById('inp-nombre').value || p.name;
+  p.cat      = document.getElementById('inp-cat').value    || p.cat;
+
+  // Apply pending oferta changes
+  if (p._tmpOferta !== undefined) { p.oferta      = p._tmpOferta; delete p._tmpOferta; }
+  if (p._tmpNivel  !== undefined) { p.nivelOferta = p._tmpNivel;  delete p._tmpNivel;  }
+
+  renderList();
+  showToast('✓ Cambios guardados en ' + p.name, 'success');
+
+  // GAS save (descomenta cuando tengas GAS_URL)
+  // gasAction('actualizarProducto', { id: p.id, precio: p.precio, stock: p.stock, ... });
+}
+
+function cancelEdit() {
+  selectedId = null;
+  renderList();
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('editorForm').style.display  = 'none';
+}
+
+function clearOferta() {
+  const p = products.find(x => x.id === selectedId);
+  if (!p) return;
+  p._tmpOferta = 'sin';
+  p._tmpNivel  = '';
+  selectOfertaType('sin');
+}
+
+// ════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = type; }, 3000);
+}
+
+// ════════════════════════════════════
+//  GAS BRIDGE (template)
+// ════════════════════════════════════
+async function gasAction(action, payload) {
+  if (!GAS_URL) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...payload })
+    });
+    return await res.json();
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+// ════════════════════════════════════
+//  INIT
+// ════════════════════════════════════
+renderList();
+</script>
+</body>
+</html>
