@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+  PATAGONIA SALVAJE — GESTOR DE OFERTAS
+================================================================================
+  v1.0 — 06/05/2026
+  -----------------
+  • Página independiente para configurar ofertas sin tocar el POS
+  • Escribe en columnas G (relámpago), H (destacada), I (especial)
+  • J en la planilla valida todo — este panel solo escribe los valores
+  • Preview en tiempo real: precio original vs precio con oferta
+  • Requiere acción "setOferta" en GAS (ver comentario al pie)
+
+================================================================================
+  CÓDIGO GAS NECESARIO — agregar en tu Apps Script:
+================================================================================
+
+  case 'setOferta': {
+    const d = JSON.parse(params.data || '{}');
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Productos');
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(d.productoId)) {
+        sheet.getRange(i+1, 7).setValue(d.relampago ?? 0);   // col G
+        sheet.getRange(i+1, 8).setValue(d.destacada ?? 0);   // col H
+        sheet.getRange(i+1, 9).setValue(d.especial ?? 0);    // col I
+        return ContentService.createTextOutput(
+          JSON.stringify({ success: true })
+        ).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: false, mensaje: 'Producto no encontrado' })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
+================================================================================
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gestor de Ofertas — Patagonia Salvaje</title>
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+    :root {
+      --bg:        #0a0a0f;
+      --bg2:       #111118;
+      --bg3:       #181825;
+      --border:    rgba(255,255,255,0.08);
+      --border2:   rgba(255,255,255,0.14);
+      --text:      #e8e8f0;
+      --sub:       #6b6b80;
+      --verde:     #2d6a4f;
+      --verde-cl:  #52b788;
+      --naranja:   #ff6f00;
+      --naranja-cl:#ffab40;
+
+      /* Relámpago */
+      --rel-bg:    #1a1200;
+      --rel-border:#ff9100;
+      --rel-text:  #ffb74d;
+      --rel-btn:   #e65100;
+
+      /* Destacada */
+      --dest-bg:   #1a0800;
+      --dest-border:#ff4500;
+      --dest-text: #ff7043;
+      --dest-btn:  #bf360c;
+
+      /* Especial */
+      --esp-bg:    #001a1a;
+      --esp-border:#00bcd4;
+      --esp-text:  #4dd0e1;
+      --esp-btn:   #00838f;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ═══ HEADER ═══ */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(135deg, #0d1f0f 0%, #1b3a22 100%);
+      border-bottom: 1px solid rgba(82,183,136,0.25);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+    .header-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 1.15rem;
+      color: var(--verde-cl);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .header-logo span { color: rgba(255,255,255,0.4); font-weight: 400; }
+    .header-back {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      color: var(--sub);
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-family: 'Barlow', sans-serif;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .header-back:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+
+    /* ═══ SEARCH BAR ═══ */
+    .search-wrap {
+      padding: 14px 16px 0;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1.5px solid var(--border2);
+      border-radius: 14px;
+      padding: 13px 16px 13px 44px;
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--verde-cl); }
+    .search-input::placeholder { color: var(--sub); }
+    .search-icon {
+      position: absolute;
+      left: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.1rem;
+      pointer-events: none;
+    }
+    .search-results {
+      position: absolute;
+      left: 16px; right: 16px;
+      top: calc(100% + 4px);
+      background: var(--bg3);
+      border: 1.5px solid var(--border2);
+      border-radius: 14px;
+      z-index: 50;
+      max-height: 280px;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      display: none;
+    }
+    .search-results.open { display: block; }
+    .search-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .search-item:last-child { border-bottom: none; }
+    .search-item:hover, .search-item:active { background: rgba(255,255,255,0.06); }
+    .search-item-img {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+    .search-item-info { flex: 1; min-width: 0; }
+    .search-item-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-item-sub {
+      font-size: 0.75rem;
+      color: var(--sub);
+      margin-top: 1px;
+    }
+    .search-item-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* ═══ EMPTY STATE ═══ */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px;
+      text-align: center;
+      color: var(--sub);
+      gap: 10px;
+    }
+    .empty-icon { font-size: 3.5rem; margin-bottom: 4px; }
+    .empty-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--text); }
+    .empty-sub { font-size: 0.85rem; line-height: 1.5; max-width: 260px; }
+
+    /* ═══ PRODUCTO SELECCIONADO — CARD ═══ */
+    .producto-card {
+      margin: 14px 16px 0;
+      background: var(--bg2);
+      border: 1.5px solid var(--border2);
+      border-radius: 18px;
+      overflow: hidden;
+      display: none;
+    }
+    .producto-card.visible { display: block; }
+
+    .prod-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(45,106,79,0.15), rgba(82,183,136,0.05));
+    }
+    .prod-img {
+      width: 60px; height: 60px;
+      border-radius: 14px;
+      object-fit: cover;
+      background: var(--bg3);
+      flex-shrink: 0;
+    }
+    .prod-info { flex: 1; min-width: 0; }
+    .prod-nombre {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 1.15rem;
+      line-height: 1.2;
+    }
+    .prod-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 5px;
+    }
+    .meta-chip {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid;
+    }
+    .chip-stock { color: #81c784; border-color: rgba(129,199,132,0.4); background: rgba(129,199,132,0.08); }
+    .chip-costo { color: #90a4ae; border-color: rgba(144,164,174,0.3); background: rgba(144,164,174,0.06); }
+    .chip-cat   { color: #b0bec5; border-color: rgba(176,190,197,0.3); background: rgba(176,190,197,0.06); }
+    .prod-cerrar {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 32px; height: 32px;
+      color: var(--sub);
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ═══ PREVIEW DE PRECIOS ═══ */
+    .precio-preview {
+      display: flex;
+      gap: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.2);
+    }
+    .precio-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .precio-col + .precio-col {
+      border-left: 1px solid var(--border);
+    }
+    .precio-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--sub);
+      text-transform: uppercase;
+    }
+    .precio-valor {
+      font-family: 'Space Mono', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+      transition: color 0.3s, transform 0.2s;
+    }
+    .precio-valor.con-oferta {
+      color: #69f0ae;
+      transform: scale(1.05);
+    }
+    .precio-original-tachado {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--sub);
+      text-decoration: line-through;
+    }
+    .precio-descuento-badge {
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: #e65100;
+      color: white;
+      transition: opacity 0.3s;
+    }
+    .precio-oferta-label {
+      font-size: 0.72rem;
+      color: var(--naranja-cl);
+      font-weight: 600;
+      min-height: 16px;
+      text-align: center;
+    }
+    .precio-costo-alerta {
+      font-size: 0.65rem;
+      color: #ef5350;
+      font-weight: 700;
+      display: none;
+      text-align: center;
+    }
+    .precio-costo-alerta.visible { display: block; }
+
+    /* ═══ SECCIONES DE OFERTA ═══ */
+    .ofertas-wrap {
+      padding: 0 16px 8px;
+    }
+
+    .oferta-seccion {
+      border-radius: 14px;
+      border: 1.5px solid;
+      margin-top: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .oferta-seccion.activa {
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .oferta-seccion.seccion-relampago {
+      border-color: rgba(255,145,0,0.3);
+      background: var(--rel-bg);
+      color: var(--rel-text);
+    }
+    .oferta-seccion.seccion-relampago.activa { border-color: var(--rel-border); }
+    .oferta-seccion.seccion-destacada {
+      border-color: rgba(255,69,0,0.3);
+      background: var(--dest-bg);
+      color: var(--dest-text);
+    }
+    .oferta-seccion.seccion-destacada.activa { border-color: var(--dest-border); }
+    .oferta-seccion.seccion-especial {
+      border-color: rgba(0,188,212,0.3);
+      background: var(--esp-bg);
+      color: var(--esp-text);
+    }
+    .oferta-seccion.seccion-especial.activa { border-color: var(--esp-border); }
+
+    .oferta-titulo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px 10px;
+    }
+    .oferta-titulo-icon { font-size: 1.2rem; }
+    .oferta-titulo-text {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      flex: 1;
+    }
+    .oferta-titulo-desc {
+      font-size: 0.7rem;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      opacity: 0.7;
+    }
+    .oferta-activa-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: currentColor;
+      color: var(--bg);
+      display: none;
+      letter-spacing: 0.04em;
+    }
+    .oferta-activa-badge.visible { display: inline; }
+
+    /* Botones relámpago */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      padding: 0 12px 12px;
+    }
+    .btn-oferta {
+      border: 1.5px solid currentColor;
+      border-radius: 10px;
+      background: transparent;
+      color: inherit;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 9px 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s, transform 0.1s;
+      position: relative;
+    }
+    .btn-oferta:active { transform: scale(0.95); }
+    .btn-oferta.selected {
+      background: currentColor;
+      color: var(--bg);
+    }
+    .btn-oferta .btn-sub {
+      font-size: 0.6rem;
+      font-weight: 600;
+      display: block;
+      opacity: 0.7;
+      margin-top: 1px;
+      font-family: 'Barlow', sans-serif;
+      letter-spacing: 0;
+    }
+    .btn-oferta.selected .btn-sub { opacity: 0.6; }
+
+    /* Barra destacada */
+    .dest-slider-wrap {
+      padding: 0 14px 14px;
+    }
+    .dest-slider-track {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+    .dest-btn {
+      border-radius: 10px;
+      border: 1.5px solid currentColor;
+      background: transparent;
+      color: inherit;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 1.05rem;
+      padding: 10px 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .dest-btn:active { transform: scale(0.95); }
+    .dest-btn[data-pct="35"]  { opacity: 0.65; }
+    .dest-btn[data-pct="40"]  { opacity: 0.75; }
+    .dest-btn[data-pct="50"]  { opacity: 0.88; }
+    .dest-btn[data-pct="60"]  { opacity: 0.95; }
+    .dest-btn[data-pct="70"]  { opacity: 1; }
+    .dest-btn.selected {
+      background: currentColor;
+      color: var(--bg);
+      opacity: 1 !important;
+      box-shadow: 0 0 12px currentColor;
+    }
+    .dest-nivel {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      color: rgba(255,112,67,0.5);
+      padding: 0 2px;
+    }
+
+    /* Switch especial */
+    .esp-switch-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px 14px;
+      gap: 12px;
+    }
+    .esp-desc {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      flex: 1;
+      line-height: 1.4;
+    }
+    .switch-outer {
+      width: 60px; height: 32px;
+      border-radius: 16px;
+      border: 2px solid currentColor;
+      background: transparent;
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .switch-outer.on {
+      background: currentColor;
+    }
+    .switch-knob {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: currentColor;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .switch-outer.on .switch-knob {
+      transform: translateX(28px);
+      background: var(--bg);
+    }
+
+    /* ═══ BOTÓN GUARDAR ═══ */
+    .guardar-wrap {
+      padding: 14px 16px 24px;
+    }
+    .btn-guardar {
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(135deg, #1b5e20, #2e7d32);
+      color: white;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(46,125,50,0.4);
+    }
+    .btn-guardar:disabled {
+      background: var(--bg3);
+      color: var(--sub);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .btn-guardar:not(:disabled):active { transform: scale(0.98); }
+    .btn-limpiar {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(239,83,80,0.4);
+      background: transparent;
+      color: #ef5350;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-limpiar:active { background: rgba(239,83,80,0.1); }
+
+    /* ═══ TOAST ═══ */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1b5e20;
+      color: white;
+      padding: 12px 22px;
+      border-radius: 50px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      z-index: 9999;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 90vw;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast.error { background: #b71c1c; }
+    .toast.naranja { background: #e65100; }
+
+    /* ═══ LOADING ═══ */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      z-index: 9998;
+      transition: opacity 0.4s;
+    }
+    .loading-overlay.oculto { opacity: 0; pointer-events: none; }
+    .loading-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 1.4rem;
+      color: var(--verde-cl);
+    }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(82,183,136,0.2);
+      border-top-color: var(--verde-cl);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-text { font-size: 0.85rem; color: var(--sub); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══ OFERTA ACTUAL INDICATOR ═══ */
+    .oferta-actual-wrap {
+      padding: 0 16px;
+      display: none;
+    }
+    .oferta-actual-wrap.visible { display: block; }
+    .oferta-actual-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: 1px solid;
+      margin-top: 10px;
+    }
+    .scroll-main {
+      overflow-y: auto;
+      height: calc(100dvh - 56px);
+    }
+
+    /* Error costo */
+    .error-costo-bar {
+      margin: 0 16px;
+      margin-top: 10px;
+      background: rgba(183,28,28,0.15);
+      border: 1px solid rgba(239,83,80,0.5);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      color: #ef9a9a;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .error-costo-bar.visible { display: flex; }
+
+    @media (min-width: 540px) {
+      .scroll-main { max-width: 540px; margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">🏔️ Patagonia Salvaje</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Cargando productos…</div>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-logo">🏷️ Gestor <span>/ Ofertas</span></div>
+  <a href="index.html" class="header-back">← POS</a>
+</header>
+
+<div class="scroll-main" id="scrollMain">
+
+  <!-- Buscador -->
+  <div class="search-wrap" style="position:relative;">
+    <span class="search-icon">🔍</span>
+    <input
+      class="search-input"
+      id="searchInput"
+      type="search"
+      placeholder="Buscar producto…"
+      autocomplete="off"
+      oninput="onSearch(this.value)"
+      onfocus="mostrarResults()"
+    >
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <!-- Oferta actual del producto -->
+  <div class="oferta-actual-wrap" id="ofertaActualWrap">
+    <div class="oferta-actual-chip" id="ofertaActualChip"></div>
+  </div>
+
+  <!-- Error costo -->
+  <div class="error-costo-bar" id="errorCostoBar">
+    ⚠️ <span id="errorCostoMsg">La oferta seleccionada vende por debajo del costo.</span>
+  </div>
+
+  <!-- Card producto -->
+  <div class="producto-card" id="productoCard">
+
+    <!-- Header producto -->
+    <div class="prod-header">
+      <img class="prod-img" id="prodImg" src="" alt="" onerror="this.src='';this.style.background='#1e1e2e';this.style.display='flex';">
+      <div class="prod-info">
+        <div class="prod-nombre" id="prodNombre">—</div>
+        <div class="prod-meta" id="prodMeta"></div>
+      </div>
+      <button class="prod-cerrar" onclick="limpiarSeleccion()">✕</button>
+    </div>
+
+    <!-- Preview precios -->
+    <div class="precio-preview">
+      <div class="precio-col">
+        <div class="precio-label">Precio venta</div>
+        <div class="precio-valor" id="prevPrecioVenta">$0</div>
+        <div class="precio-oferta-label" style="color:var(--sub);font-size:0.68rem;" id="prevPrecioNormal"></div>
+      </div>
+      <div class="precio-col">
+        <div class="precio-label">Precio costo</div>
+        <div class="precio-valor" id="prevPrecioCosto" style="color:var(--sub);">$0</div>
+        <div class="precio-oferta-label" id="prevMargenBase"></div>
+      </div>
+      <div class="precio-col">
+        <div class="precio-label">Con oferta</div>
+        <div class="precio-valor con-oferta" id="prevPrecioOferta">—</div>
+        <div class="precio-original-tachado" id="prevPrecioTachado"></div>
+        <div class="precio-costo-alerta" id="prevCostoAlerta">⚠️ Bajo costo</div>
+        <div class="precio-descuento-badge" id="prevDescBadge" style="display:none;"></div>
+      </div>
+    </div>
+    <div style="padding:4px 16px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div class="precio-oferta-label" id="prevEtiqueta" style="font-size:0.82rem;"></div>
+      <div id="prevMargenOferta" style="font-size:0.72rem;color:var(--sub);"></div>
+    </div>
+
+    <!-- Ofertas -->
+    <div class="ofertas-wrap">
+
+      <!-- ⚡ RELÁMPAGO -->
+      <div class="oferta-seccion seccion-relampago" id="secRelampago">
+        <div class="oferta-titulo">
+          <span class="oferta-titulo-icon">⚡</span>
+          <div>
+            <div class="oferta-titulo-text">
+              Relámpago
+              <span class="oferta-activa-badge" id="badgeRel">ACTIVA</span>
+            </div>
+            <div class="oferta-titulo-desc">Cod. en columna G · NxM o % descuento</div>
+          </div>
+        </div>
+        <div class="btn-grid" id="gridRelampago">
+          <!-- se llena con JS -->
+        </div>
+      </div>
+
+      <!-- 🔥 DESTACADA -->
+      <div class="oferta-seccion seccion-destacada" id="secDestacada">
+        <div class="oferta-titulo">
+          <span class="oferta-titulo-icon">🔥</span>
+          <div>
+            <div class="oferta-titulo-text">
+              Destacada
+              <span class="oferta-activa-badge" id="badgeDest">ACTIVA</span>
+            </div>
+            <div class="oferta-titulo-desc">% en columna H · Oferta fuerte 31–70%</div>
+          </div>
+        </div>
+        <div class="dest-slider-wrap">
+          <div class="dest-slider-track" id="trackDestacada">
+            <!-- se llena con JS -->
+          </div>
+          <div class="dest-nivel">
+            <span>suave</span>
+            <span>moderado</span>
+            <span>⚡</span>
+            <span>fuerte</span>
+            <span>máximo</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⭐ ESPECIAL -->
+      <div class="oferta-seccion seccion-especial" id="secEspecial">
+        <div class="oferta-titulo">
+          <span class="oferta-titulo-icon">⭐</span>
+          <div>
+            <div class="oferta-titulo-text">
+              Especial
+              <span class="oferta-activa-badge" id="badgeEsp">ACTIVA</span>
+            </div>
+            <div class="oferta-titulo-desc">0/1 en columna I · Promo manual / campaña</div>
+          </div>
+        </div>
+        <div class="esp-switch-wrap">
+          <div class="esp-desc">Activá para incluir en campañas especiales, menú del día o ediciones limitadas. Aplica 10% OFF en POS.</div>
+          <div class="switch-outer" id="switchEspecial" onclick="toggleEspecial()">
+            <div class="switch-knob"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /ofertas-wrap -->
+
+    <!-- Guardar -->
+    <div class="guardar-wrap">
+      <button class="btn-guardar" id="btnGuardar" onclick="guardarOferta()" disabled>
+        💾 Guardar oferta
+      </button>
+      <button class="btn-limpiar" id="btnLimpiar" onclick="limpiarOfertaProducto()">
+        🗑 Quitar todas las ofertas de este producto
+      </button>
+    </div>
+
+  </div><!-- /producto-card -->
+
+  <!-- Empty state (cuando no hay seleccionado) -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🏷️</div>
+    <div class="empty-title">Gestor de Ofertas</div>
+    <div class="empty-sub">Buscá un producto para configurar su tipo de oferta, ver precios y guardar en la planilla.</div>
+  </div>
+
+</div><!-- /scroll-main -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG — misma URL que el POS
+// ═══════════════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbw4uaR6IgUrl63JB_GCgZFWhRfLCcTUxhDYOtJJFUK4aTwN8PiF4fomibiOnOEXZFzE/exec';
+const API_TIMEOUT = 12000;
+
+// ═══════════════════════════════════════════════════════════
+//  MAPA DE RELÁMPAGO (columna G)
+// ═══════════════════════════════════════════════════════════
+const RELAMPAGO_OPTS = [
+  { codigo: 0,  label: 'Sin\noferta', sub: '—',         tipo: 'ninguno' },
+  { codigo: 1,  label: '2x1',        sub: 'NxM',        tipo: 'nxm', cantidad: 2, pagas: 1    },
+  { codigo: 2,  label: '3x2',        sub: 'NxM',        tipo: 'nxm', cantidad: 3, pagas: 2    },
+  { codigo: 3,  label: '4x3',        sub: 'NxM',        tipo: 'nxm', cantidad: 4, pagas: 3    },
+  { codigo: 4,  label: '5x4',        sub: 'NxM',        tipo: 'nxm', cantidad: 5, pagas: 4    },
+  { codigo: 5,  label: '6x5',        sub: 'NxM',        tipo: 'nxm', cantidad: 6, pagas: 5    },
+  { codigo: 6,  label: '7x6',        sub: 'NxM',        tipo: 'nxm', cantidad: 7, pagas: 6    },
+  { codigo: 7,  label: '8x7',        sub: 'NxM',        tipo: 'nxm', cantidad: 8, pagas: 7    },
+  { codigo: 8,  label: '9x8',        sub: 'NxM',        tipo: 'nxm', cantidad: 9, pagas: 8    },
+  { codigo: 9,  label: '10x9',       sub: 'NxM',        tipo: 'nxm', cantidad:10, pagas: 9    },
+  { codigo: 10, label: '2da\n50%',   sub: '2da mitad',  tipo: 'nxm', cantidad: 2, pagas: 1.5  },
+  { codigo: 11, label: '10%',        sub: 'OFF',        tipo: 'pct', descuento: 10 },
+  { codigo: 12, label: '15%',        sub: 'OFF',        tipo: 'pct', descuento: 15 },
+  { codigo: 13, label: '20%',        sub: 'OFF',        tipo: 'pct', descuento: 20 },
+  { codigo: 14, label: '25%',        sub: 'OFF',        tipo: 'pct', descuento: 25 },
+];
+
+const DESTACADA_OPTS = [35, 40, 50, 60, 70];
+
+// ═══════════════════════════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════════════════════════
+let productos = [];
+let productoActual = null;
+
+// Valores en edición (lo que el usuario seleccionó, aún no guardado)
+let editRelampago  = 0;  // código G
+let editDestacada  = 0;  // % H
+let editEspecial   = 0;  // 0/1 I
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  construirUI();
+  await cargarProductos();
+  document.getElementById('loadingOverlay').classList.add('oculto');
+
+  // Cerrar resultados al tocar fuera
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-wrap')) ocultarResults();
+  });
+});
+
+function construirUI() {
+  // Grid relámpago
+  const grid = document.getElementById('gridRelampago');
+  RELAMPAGO_OPTS.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-oferta';
+    btn.dataset.codigo = opt.codigo;
+    btn.innerHTML = opt.label.replace('\n','<br>') + `<span class="btn-sub">${opt.sub}</span>`;
+    btn.onclick = () => seleccionarRelampago(opt.codigo);
+    if (opt.codigo === 0) btn.style.gridColumn = 'span 1';
+    grid.appendChild(btn);
+  });
+
+  // Track destacada
+  const track = document.getElementById('trackDestacada');
+  DESTACADA_OPTS.forEach(pct => {
+    const btn = document.createElement('button');
+    btn.className = 'dest-btn';
+    btn.dataset.pct = pct;
+    btn.textContent = pct + '%';
+    btn.onclick = () => seleccionarDestacada(pct);
+    track.appendChild(btn);
+  });
+}
+
+async function cargarProductos() {
+  try {
+    const r = await fetch(API_URL + '?cache=' + Date.now(), {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(API_TIMEOUT)
+    });
+    const data = await r.json();
+    const arr = data.productos || data;
+    productos = arr
+      .filter(p => p.name && p.price > 0)
+      .map(p => ({
+        id:         p.id,
+        name:       String(p.name).trim(),
+        price:      parseInt(p.price) || 0,
+        stock:      parseInt(p.stock) || 0,
+        precioCosto:parseInt(p.precioCosto) || 0,
+        category:   String(p.category || 'ALMACEN').trim().toUpperCase(),
+        normal:     parseInt(p.normal) || 0,
+        relampago:  (p.relampago !== undefined && p.relampago !== null && p.relampago !== '')
+                      ? (isNaN(parseInt(p.relampago)) ? 0 : parseInt(p.relampago))
+                      : 0,
+        destacada:  parseInt(p.destacada) || 0,
+        especial:   parseInt(p.especial)  || 0,
+        image:      `imagenes-productos/${simplificarNombre(String(p.name).trim())}.jpg`,
+      }));
+    mostrarToast(`✅ ${productos.length} productos cargados`, 'verde');
+  } catch(e) {
+    mostrarToast('❌ Error al cargar productos', 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BÚSQUEDA
+// ═══════════════════════════════════════════════════════════
+function simplificarNombre(nombre) {
+  return nombre.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9 ]/g,'')
+    .replace(/\s+/g,'-').replace(/-+/g,'-').trim();
+}
+function normalizarBusqueda(str) {
+  return str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,' ').trim();
+}
+function scoreBusqueda(nombreNorm, terminos) {
+  let score = 0;
+  const palabras = nombreNorm.split(/\s+/);
+  terminos.forEach(t => {
+    if (nombreNorm === t)                          score += 100;
+    else if (nombreNorm.startsWith(t))             score += 60;
+    else if (palabras.some(p => p === t))          score += 50;
+    else if (palabras.some(p => p.startsWith(t)))  score += 35;
+    else if (nombreNorm.includes(t))               score += 20;
+  });
+  return score;
+}
+
+let _searchTimer = null;
+function onSearch(val) {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => renderResults(val), 160);
+}
+
+function renderResults(val) {
+  const div = document.getElementById('searchResults');
+  if (!val || val.trim().length < 1) { div.classList.remove('open'); return; }
+  const term = normalizarBusqueda(val);
+  const terminos = [term, ...term.split(/\s+/)].filter(Boolean);
+
+  const matches = productos
+    .map(p => ({ p, score: scoreBusqueda(normalizarBusqueda(p.name), terminos) }))
+    .filter(x => x.score > 0)
+    .sort((a,b) => {
+      if ((b.p.stock>0)-(a.p.stock>0)) return (b.p.stock>0)-(a.p.stock>0);
+      return b.score - a.score;
+    })
+    .slice(0,12)
+    .map(x => x.p);
+
+  if (!matches.length) { div.classList.remove('open'); return; }
+
+  div.innerHTML = matches.map(p => {
+    const ofertaLabel = _ofertaActualLabel(p);
+    const stockColor = p.stock > 5 ? '#81c784' : p.stock > 0 ? '#ffb74d' : '#ef5350';
+    return `
+    <div class="search-item" onclick="seleccionarProducto(${p.id})">
+      <img class="search-item-img" src="${p.image}" onerror="this.style.display='none'" alt="">
+      <div class="search-item-info">
+        <div class="search-item-name">${p.name}</div>
+        <div class="search-item-sub">
+          $${p.price.toLocaleString('es-AR')} · 
+          <span style="color:${stockColor}">stock: ${p.stock}</span>
+          ${p.category !== 'ALMACEN' ? ' · ' + p.category : ''}
+        </div>
+      </div>
+      ${ofertaLabel ? `<span class="search-item-badge" style="${ofertaLabel.style}">${ofertaLabel.texto}</span>` : ''}
+    </div>`;
+  }).join('');
+  div.classList.add('open');
+}
+
+function mostrarResults() {
+  const val = document.getElementById('searchInput').value;
+  if (val && val.trim().length > 0) renderResults(val);
+}
+function ocultarResults() {
+  document.getElementById('searchResults').classList.remove('open');
+}
+
+function _ofertaActualLabel(p) {
+  if (p.relampago > 0) {
+    const opt = RELAMPAGO_OPTS.find(o => o.codigo === p.relampago);
+    return { texto: '⚡ ' + (opt ? opt.label.replace('\n',' ') : 'Rel.'+p.relampago), style: 'background:rgba(230,81,0,0.25);color:#ffb74d;border:1px solid rgba(255,145,0,0.4);' };
+  }
+  if (p.destacada > 0) return { texto: '🔥 '+p.destacada+'%', style: 'background:rgba(191,54,12,0.25);color:#ff7043;border:1px solid rgba(255,69,0,0.4);' };
+  if (p.especial  > 0) return { texto: '⭐ Especial',         style: 'background:rgba(0,131,143,0.25);color:#4dd0e1;border:1px solid rgba(0,188,212,0.4);' };
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SELECCIÓN DE PRODUCTO
+// ═══════════════════════════════════════════════════════════
+function seleccionarProducto(id) {
+  ocultarResults();
+  document.getElementById('searchInput').value = '';
+
+  productoActual = productos.find(p => p.id === id);
+  if (!productoActual) return;
+
+  // Cargar estado actual del producto en los editores
+  editRelampago = productoActual.relampago || 0;
+  editDestacada = productoActual.destacada || 0;
+  editEspecial  = productoActual.especial  || 0;
+
+  // UI producto
+  document.getElementById('prodImg').src = productoActual.image;
+  document.getElementById('prodNombre').textContent = productoActual.name;
+
+  // Meta chips
+  const meta = document.getElementById('prodMeta');
+  meta.innerHTML = `
+    <span class="meta-chip chip-stock">📦 ${productoActual.stock} uds</span>
+    ${productoActual.precioCosto > 0 ? `<span class="meta-chip chip-costo">💰 Costo $${productoActual.precioCosto.toLocaleString('es-AR')}</span>` : ''}
+    <span class="meta-chip chip-cat">${productoActual.category}</span>
+  `;
+
+  // Mostrar card, ocultar empty
+  document.getElementById('productoCard').classList.add('visible');
+  document.getElementById('emptyState').style.display = 'none';
+
+  // Renderizar botones con estado actual
+  renderBotonesRelampago();
+  renderBotonesDestacada();
+  renderSwitchEspecial();
+  actualizarPreview();
+  actualizarBadges();
+
+  // Scroll al card
+  setTimeout(() => {
+    document.getElementById('productoCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 100);
+}
+
+function limpiarSeleccion() {
+  productoActual = null;
+  editRelampago  = 0;
+  editDestacada  = 0;
+  editEspecial   = 0;
+  document.getElementById('productoCard').classList.remove('visible');
+  document.getElementById('emptyState').style.display = 'flex';
+  document.getElementById('ofertaActualWrap').classList.remove('visible');
+  document.getElementById('errorCostoBar').classList.remove('visible');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER CONTROLES
+// ═══════════════════════════════════════════════════════════
+function renderBotonesRelampago() {
+  document.querySelectorAll('#gridRelampago .btn-oferta').forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.codigo) === editRelampago);
+  });
+}
+
+function renderBotonesDestacada() {
+  document.querySelectorAll('#trackDestacada .dest-btn').forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.pct) === editDestacada);
+  });
+}
+
+function renderSwitchEspecial() {
+  const sw = document.getElementById('switchEspecial');
+  sw.classList.toggle('on', editEspecial === 1);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SELECCIÓN DE VALORES
+// ═══════════════════════════════════════════════════════════
+function seleccionarRelampago(codigo) {
+  if (!productoActual) return;
+  // Mutualmente excluyente con destacada y especial
+  if (codigo > 0) { editDestacada = 0; editEspecial = 0; }
+  editRelampago = codigo;
+  renderBotonesRelampago();
+  renderBotonesDestacada();
+  renderSwitchEspecial();
+  actualizarPreview();
+  actualizarBadges();
+}
+
+function seleccionarDestacada(pct) {
+  if (!productoActual) return;
+  // Toggle: si ya estaba seleccionado, deseleccionar
+  if (editDestacada === pct) { editDestacada = 0; }
+  else {
+    editDestacada = pct;
+    editRelampago = 0;
+    editEspecial  = 0;
+  }
+  renderBotonesRelampago();
+  renderBotonesDestacada();
+  renderSwitchEspecial();
+  actualizarPreview();
+  actualizarBadges();
+}
+
+function toggleEspecial() {
+  if (!productoActual) return;
+  if (editEspecial === 1) {
+    editEspecial = 0;
+  } else {
+    editEspecial  = 1;
+    editRelampago = 0;
+    editDestacada = 0;
+  }
+  renderBotonesRelampago();
+  renderBotonesDestacada();
+  renderSwitchEspecial();
+  actualizarPreview();
+  actualizarBadges();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PREVIEW DE PRECIOS
+// ═══════════════════════════════════════════════════════════
+function actualizarPreview() {
+  if (!productoActual) return;
+  const p = productoActual;
+  const precio = p.price;
+  const costo  = p.precioCosto || 0;
+
+  // Precio venta
+  document.getElementById('prevPrecioVenta').textContent = '$' + precio.toLocaleString('es-AR');
+  document.getElementById('prevPrecioNormal').textContent =
+    p.normal && p.normal > precio ? `(normal $${p.normal.toLocaleString('es-AR')})` : '';
+
+  // Precio costo
+  document.getElementById('prevPrecioCosto').textContent =
+    costo > 0 ? '$' + costo.toLocaleString('es-AR') : '—';
+  const margenBase = costo > 0 ? Math.round((precio - costo) / precio * 100) : null;
+  document.getElementById('prevMargenBase').textContent =
+    margenBase !== null ? `margen ${margenBase}%` : '';
+
+  // Precio con oferta
+  const { precioFinal, etiqueta, descPct } = calcularPrecioOferta(precio);
+  const elPrecioOferta  = document.getElementById('prevPrecioOferta');
+  const elTachado       = document.getElementById('prevPrecioTachado');
+  const elBadge         = document.getElementById('prevDescBadge');
+  const elEtiqueta      = document.getElementById('prevEtiqueta');
+  const elMargen        = document.getElementById('prevMargenOferta');
+  const elCostoAlerta   = document.getElementById('prevCostoAlerta');
+  const errorBar        = document.getElementById('errorCostoBar');
+
+  if (precioFinal !== null && precioFinal !== precio) {
+    elPrecioOferta.textContent = '$' + precioFinal.toLocaleString('es-AR');
+    elPrecioOferta.classList.add('con-oferta');
+    elTachado.textContent = '$' + precio.toLocaleString('es-AR');
+    elBadge.style.display = 'inline';
+    elBadge.textContent = descPct ? `-${descPct}%` : etiqueta;
+    elEtiqueta.textContent = etiqueta || '';
+
+    // Margen con oferta
+    if (costo > 0 && precioFinal > 0) {
+      const margenOferta = Math.round((precioFinal - costo) / precioFinal * 100);
+      elMargen.textContent = `margen con oferta: ${margenOferta}%`;
+      const bajoCosto = precioFinal < costo;
+      elCostoAlerta.classList.toggle('visible', bajoCosto);
+      errorBar.classList.toggle('visible', bajoCosto);
+      if (bajoCosto) {
+        document.getElementById('errorCostoMsg').textContent =
+          `⚠️ Precio con oferta ($${precioFinal.toLocaleString('es-AR')}) está por debajo del costo ($${costo.toLocaleString('es-AR')}).`;
+      }
+    } else {
+      elMargen.textContent = '';
+      elCostoAlerta.classList.remove('visible');
+      errorBar.classList.remove('visible');
+    }
+  } else {
+    // Sin oferta activa
+    elPrecioOferta.textContent = '—';
+    elPrecioOferta.classList.remove('con-oferta');
+    elTachado.textContent = '';
+    elBadge.style.display = 'none';
+    elEtiqueta.textContent = 'Sin oferta configurada';
+    elMargen.textContent = '';
+    elCostoAlerta.classList.remove('visible');
+    errorBar.classList.remove('visible');
+  }
+
+  // Habilitar guardar si cambió algo respecto al producto original
+  const cambio = (editRelampago !== (p.relampago||0)) ||
+                 (editDestacada !== (p.destacada||0)) ||
+                 (editEspecial  !== (p.especial ||0));
+  document.getElementById('btnGuardar').disabled = !cambio;
+}
+
+function calcularPrecioOferta(precio) {
+  // Relámpago
+  if (editRelampago > 0) {
+    const opt = RELAMPAGO_OPTS.find(o => o.codigo === editRelampago);
+    if (!opt) return { precioFinal: precio, etiqueta: '', descPct: null };
+    if (opt.tipo === 'pct') {
+      return {
+        precioFinal: Math.round(precio * (1 - opt.descuento/100)),
+        etiqueta: `⚡ -${opt.descuento}% OFF`,
+        descPct: opt.descuento
+      };
+    } else if (opt.tipo === 'nxm') {
+      // Para NxM mostramos el precio efectivo pagando 2 unidades
+      const qty = opt.cantidad;
+      const total = Math.round((1 * opt.pagas + (qty-1) * 0) * precio); // aprox 1 ciclo
+      // precio unitario efectivo tomando N pagando M
+      const precioEfectivo = Math.round(precio * opt.pagas / opt.cantidad);
+      const descApprox = Math.round((1 - opt.pagas/opt.cantidad) * 100);
+      return {
+        precioFinal: precioEfectivo,
+        etiqueta: `⚡ ${opt.label.replace('\n',' ')} (c/u efectivo)`,
+        descPct: descApprox
+      };
+    }
+  }
+
+  // Destacada
+  if (editDestacada > 0) {
+    return {
+      precioFinal: Math.round(precio * (1 - editDestacada/100)),
+      etiqueta: `🔥 -${editDestacada}% OFF`,
+      descPct: editDestacada
+    };
+  }
+
+  // Especial
+  if (editEspecial === 1) {
+    return {
+      precioFinal: Math.round(precio * 0.9),
+      etiqueta: `⭐ -10% OFF Especial`,
+      descPct: 10
+    };
+  }
+
+  return { precioFinal: precio, etiqueta: null, descPct: null };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BADGES "ACTIVA"
+// ═══════════════════════════════════════════════════════════
+function actualizarBadges() {
+  document.getElementById('badgeRel').classList.toggle('visible',  editRelampago > 0);
+  document.getElementById('badgeDest').classList.toggle('visible', editDestacada > 0);
+  document.getElementById('badgeEsp').classList.toggle('visible',  editEspecial  > 0);
+
+  document.getElementById('secRelampago').classList.toggle('activa',  editRelampago > 0);
+  document.getElementById('secDestacada').classList.toggle('activa',  editDestacada > 0);
+  document.getElementById('secEspecial').classList.toggle('activa',   editEspecial  > 0);
+
+  // Chip oferta actual del producto guardado
+  const chip = document.getElementById('ofertaActualChip');
+  const wrap = document.getElementById('ofertaActualWrap');
+  if (productoActual) {
+    const lbl = _ofertaActualLabel(productoActual);
+    if (lbl) {
+      chip.innerHTML = `Oferta guardada: <strong>${lbl.texto}</strong>`;
+      chip.style.cssText = lbl.style;
+      wrap.classList.add('visible');
+    } else {
+      chip.innerHTML = 'Sin oferta guardada';
+      chip.style.cssText = 'color:var(--sub);border-color:var(--border);';
+      wrap.classList.add('visible');
+    }
+  } else {
+    wrap.classList.remove('visible');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GUARDAR
+// ═══════════════════════════════════════════════════════════
+async function guardarOferta() {
+  if (!productoActual) return;
+
+  const btn = document.getElementById('btnGuardar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando…';
+
+  try {
+    const datos = {
+      productoId: productoActual.id,
+      relampago:  editRelampago,
+      destacada:  editDestacada,
+      especial:   editEspecial,
+    };
+    const url = API_URL + '?action=setOferta&data=' + encodeURIComponent(JSON.stringify(datos));
+    const resp = await fetch(url, { redirect:'follow', signal: AbortSignal.timeout(API_TIMEOUT) });
+    const json = await resp.json();
+
+    if (json.success) {
+      // Actualizar en memoria
+      productoActual.relampago = editRelampago;
+      productoActual.destacada = editDestacada;
+      productoActual.especial  = editEspecial;
+
+      // Actualizar también en el array global
+      const idx = productos.findIndex(p => p.id === productoActual.id);
+      if (idx >= 0) {
+        productos[idx].relampago = editRelampago;
+        productos[idx].destacada = editDestacada;
+        productos[idx].especial  = editEspecial;
+      }
+
+      actualizarBadges();
+      btn.textContent = '✅ Guardado';
+      mostrarToast('✅ Oferta guardada en la planilla', 'verde');
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '💾 Guardar oferta';
+        btn.disabled = true; // sin cambios pendientes
+      }, 1800);
+    } else {
+      throw new Error(json.mensaje || 'Error GAS');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar oferta';
+    mostrarToast('❌ Error: ' + (e.message || 'sin conexión'), 'error');
+  }
+}
+
+async function limpiarOfertaProducto() {
+  if (!productoActual) return;
+  editRelampago = 0;
+  editDestacada = 0;
+  editEspecial  = 0;
+  renderBotonesRelampago();
+  renderBotonesDestacada();
+  renderSwitchEspecial();
+  actualizarPreview();
+  actualizarBadges();
+  mostrarToast('🗑 Ofertas limpiadas — guardá para confirmar', 'naranja');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+let _toastTimer = null;
+function mostrarToast(msg, tipo = 'verde') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (tipo === 'error' ? 'error' : tipo === 'naranja' ? 'naranja' : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
