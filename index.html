@@ -1551,10 +1551,23 @@
       placeholder="PIN de seguridad"
       style="width:100%;box-sizing:border-box;padding:12px 16px;border-radius:10px;border:2px solid #7f1d1d;
              background:#0f0f1a;color:#fff;font-size:1.3rem;text-align:center;letter-spacing:6px;
-             margin-bottom:16px;outline:none;"
+             margin-bottom:12px;outline:none;"
+      onkeydown="if(event.key==='Enter') document.getElementById('resetConfirmInput').focus()"
+    >
+    <div style="font-size:0.78rem;color:rgba(255,255,255,0.45);text-align:left;margin-bottom:6px;margin-top:4px;">
+      Escribí <strong style="color:#f87171;">CONFIRMAR</strong> para continuar:
+    </div>
+    <input id="resetConfirmInput" type="text" maxlength="10" autocomplete="off"
+      placeholder="CONFIRMAR"
+      style="width:100%;box-sizing:border-box;padding:12px 16px;border-radius:10px;border:2px solid #7f1d1d;
+             background:#0f0f1a;color:#fff;font-size:1rem;text-align:center;letter-spacing:3px;
+             margin-bottom:12px;outline:none;text-transform:uppercase;"
       onkeydown="if(event.key==='Enter') ejecutarResetTotal()"
     >
-    <div id="resetMsgError" style="color:#f87171;font-size:0.82rem;min-height:18px;margin-bottom:12px;"></div>
+    <div id="resetMsgError" style="color:#f87171;font-size:0.82rem;min-height:18px;margin-bottom:8px;"></div>
+    <div style="font-size:0.70rem;color:rgba(255,255,255,0.2);text-align:center;margin-bottom:4px;">
+      PIN configurado en CONFIG_UI → clave RESET_PIN
+    </div>
     <div style="display:flex;gap:10px;">
       <button onclick="cerrarModalResetTotal()" style="flex:1;padding:12px;border-radius:10px;border:none;background:#2a2a3e;color:#aaa;font-weight:700;cursor:pointer;font-size:0.9rem;">Cancelar</button>
       <button onclick="ejecutarResetTotal()" id="resetBtn" style="flex:1;padding:12px;border-radius:10px;border:none;background:#7f1d1d;color:#fff;font-weight:900;cursor:pointer;font-size:0.9rem;">RESETEAR TODO</button>
@@ -1862,6 +1875,10 @@ function _aplicarConfigUI() {
         if (val) root.setProperty(v, val);
     });
 
+    // ── Vendedores a excluir (para uso futuro en filtros) ──
+    if (_cfgUI['VENDEDORES_EXCLUIR_ARR']) {
+        window._vendedoresExcluir = _cfgUI['VENDEDORES_EXCLUIR_ARR'];
+    }
     console.log('✅ CONFIG_UI aplicada:', Object.keys(_cfgUI).length, 'claves');
 }
 
@@ -10100,6 +10117,7 @@ async function cargarHistorialSalidas() {
 function abrirModalResetTotal() {
     const modal = document.getElementById('modalResetTotal');
     document.getElementById('resetPinInput').value = '';
+    document.getElementById('resetConfirmInput').value = '';
     document.getElementById('resetMsgError').textContent = '';
     document.getElementById('resetBtn').disabled = false;
     document.getElementById('resetBtn').textContent = 'RESETEAR TODO';
@@ -10113,10 +10131,16 @@ function cerrarModalResetTotal(e) {
 }
 
 async function ejecutarResetTotal() {
-    const pin = document.getElementById('resetPinInput').value.trim();
-    const errEl = document.getElementById('resetMsgError');
-    const btn = document.getElementById('resetBtn');
-    if (!pin) { errEl.textContent = 'Ingresá el PIN'; return; }
+    const pin     = document.getElementById('resetPinInput').value.trim();
+    const confirm = document.getElementById('resetConfirmInput').value.trim().toUpperCase();
+    const errEl   = document.getElementById('resetMsgError');
+    const btn     = document.getElementById('resetBtn');
+    if (!pin) { errEl.textContent = '⚠️ Ingresá el PIN'; return; }
+    if (confirm !== 'CONFIRMAR') {
+        errEl.textContent = '⚠️ Escribí CONFIRMAR exactamente para continuar';
+        document.getElementById('resetConfirmInput').focus();
+        return;
+    }
     btn.disabled = true;
     btn.textContent = 'Reseteando...';
     errEl.textContent = '';
@@ -10135,6 +10159,7 @@ async function ejecutarResetTotal() {
             btn.disabled = false;
             btn.textContent = 'RESETEAR TODO';
             document.getElementById('resetPinInput').value = '';
+            document.getElementById('resetConfirmInput').value = '';
             document.getElementById('resetPinInput').focus();
         }
     } catch(e) {

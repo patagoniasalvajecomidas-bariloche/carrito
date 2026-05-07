@@ -75,7 +75,8 @@ function irAHistorial() {
 // ========== ACTUALIZAR TODO ==========
 // ⚠️ Las funciones del motor muestran su propio alert — no agregar un tercero acá
 function actualizarTodo() {
-  actualizarMotorInventario();
+  actualizarMotorInventario(); // motor de inventario
+  actualizarListaCompra();    // genera lista de compra
   actualizarListaCompra();
 }
 
@@ -1532,7 +1533,17 @@ function doGet(e) {
       return respuestaJSON(getCarritoTemp());
     }
     if (e && e.parameter && e.parameter.action === 'getListaCompra') {
+      // Primero regenera la hoja, luego devuelve los datos
+      actualizarListaCompra();
       return respuestaJSON(getListaCompraJSON());
+    }
+    if (e && e.parameter && e.parameter.action === 'generarListaCompra') {
+      return respuestaJSON(actualizarListaCompra());
+    }
+    if (e && e.parameter && e.parameter.action === 'actualizarMotor') {
+      actualizarMotorInventario();
+      actualizarListaCompra();
+      return respuestaJSON({ ok: true, msg: 'Motor y lista actualizados' });
     }
     if (e && e.parameter && e.parameter.action === 'listarFiados') {
       return respuestaJSON(listarFiados());
@@ -1583,6 +1594,32 @@ function doGet(e) {
     if (e && e.parameter && e.parameter.action === 'ventasProducto') {
       var datosVP = JSON.parse(decodeURIComponent(e.parameter.data));
       return respuestaJSON(getVentasProducto(datosVP));
+    }
+    if (e && e.parameter && e.parameter.action === 'resetearPlanilla') {
+      var pinReset = e.parameter.pin || '';
+      return respuestaJSON(resetearPlanilla(pinReset));
+    }
+    if (e && e.parameter && e.parameter.action === 'getConfigUI') {
+      return respuestaJSON(getConfigUI());
+    }
+    if (e && e.parameter && e.parameter.action === 'getCajaEgresos') {
+      var datosEg = e.parameter.data ? JSON.parse(decodeURIComponent(e.parameter.data)) : {};
+      return respuestaJSON(getCajaEgresos(datosEg));
+    }
+    if (e && e.parameter && e.parameter.action === 'getSalidasInternas') {
+      var datosSal = e.parameter.data ? JSON.parse(decodeURIComponent(e.parameter.data)) : {};
+      return respuestaJSON(getSalidasInternas(datosSal));
+    }
+    if (e && e.parameter && e.parameter.action === 'getPromoEspecial') {
+      return respuestaJSON(getPromoEspecial());
+    }
+    if (e && e.parameter && e.parameter.action === 'getHorarioLocal') {
+      var datosHor = e.parameter.data ? JSON.parse(decodeURIComponent(e.parameter.data)) : {};
+      return respuestaJSON(getHorarioLocal(datosHor));
+    }
+    if (e && e.parameter && e.parameter.action === 'setHorarioLocal') {
+      var datosSetHor = e.parameter.data ? JSON.parse(decodeURIComponent(e.parameter.data)) : {};
+      return respuestaJSON(getHorarioLocal(datosSetHor));
     }
 
     // ── GET PRODUCTOS (carga la tienda) ──
@@ -3071,5 +3108,424 @@ function _registrarIngresoFiadoCaja_(ss, d) {
     ]);
   } catch(e) {
     console.error('_registrarIngresoFiadoCaja_ error (no crítico):', e);
+  }
+}
+
+// ========== RESET TOTAL — SÓLO PARA PRUEBAS ==========
+// Borra todos los datos transaccionales y deja el inventario con stock=0
+// Se activa sólo si el PIN recibido coincide con RESET_PIN
+function resetearPlanilla(pin) {
+  // PIN desde CONFIG_UI — si no está configurado usa 7749 como fallback
+  var RESET_PIN = '7749';
+  try {
+    var ssCfg  = SpreadsheetApp.openById(SS_ID);
+    var shCfgU = ssCfg.getSheetByName('CONFIG_UI');
+    if (shCfgU) {
+      var cfgUIData = shCfgU.getDataRange().getValues();
+      for (var ci = 1; ci < cfgUIData.length; ci++) {
+        if (String(cfgUIData[ci][0]).trim() === 'RESET_PIN') {
+          var pinVal = String(cfgUIData[ci][1] || '').trim();
+          if (pinVal) RESET_PIN = pinVal;
+          break;
+        }
+      }
+    }
+  } catch(ePin) { /* usa fallback */ }
+  if (String(pin) !== RESET_PIN) {
+    return { ok: false, msg: 'PIN incorrecto' };
+  }
+
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID);
+
+    // 1. Hojas de transacciones → borrar todo menos la fila de encabezado
+    var hojasTrans = ['Ventas', 'FIADOS', 'SALIDAS', 'Caja',
+                      'CAJA_MOVIMIENTOS', 'Historial', 'Ajuste_Rapido',
+                      'Interruptores_Log', 'evento_cerveza_log',
+                      'Clientes', 'Lista de compra', 'carrito_temp'];
+
+    hojasTrans.forEach(function(nombre) {
+      var sh = ss.getSheetByName(nombre);
+      if (!sh) return;
+      var lastRow = sh.getLastRow();
+      if (lastRow > 1) {
+        sh.deleteRows(2, lastRow - 1);
+      }
+    });
+
+    // 2. Inventario → poner STOCK = 0 en columna F (col 6), mantener todo lo demás
+    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
+    var lastRowInv = shInv.getLastRow();
+    if (lastRowInv > 1) {
+      // Columna F = stock (índice 6)
+      var stockRange = shInv.getRange(2, 6, lastRowInv - 1, 1);
+      var zeros = Array(lastRowInv - 1).fill([0]);
+      stockRange.setValues(zeros);
+    }
+
+    // 3. config_sistema → limpiar solo filas de estado (ventas del día, caja, etc.)
+    //    Dejamos las filas de configuración del sistema intactas
+    var shCfg = ss.getSheetByName(HOJA_CONFIG);
+    if (shCfg) {
+      var cfgData = shCfg.getDataRange().getValues();
+      for (var i = 1; i < cfgData.length; i++) {
+        var clave = String(cfgData[i][0] || '').toUpperCase();
+        // Solo resetear claves de estado, no de configuración
+        if (['VENTAS_HOY', 'CAJA_HOY', 'ULTIMO_TICKET', 'TICKET_COUNTER',
+             'TOTAL_HOY', 'EFECTIVO_HOY', 'TRANSFERENCIA_HOY', 'MP_HOY',
+             'FIADO_HOY', 'GASTOS_HOY'].indexOf(clave) !== -1) {
+          shCfg.getRange(i + 1, 2).setValue(0);
+        }
+      }
+    }
+
+    return { ok: true, msg: '✅ Planilla reseteada correctamente. Stock en 0, transacciones borradas.' };
+
+  } catch(e) {
+    return { ok: false, msg: '❌ Error: ' + e.toString() };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PATAGONIA SALVAJE — FUNCIONES NUEVAS
+// ═══════════════════════════════════════════════════════════════
+
+// ── 1. getCajaEgresos ────────────────────────────────────────
+// Devuelve registros de EGRESO/RETIRO de CAJA_MOVIMIENTOS
+// Params: { fecha: 'yyyy-MM-dd' (opcional), limite: N }
+function getCajaEgresos(datos) {
+  try {
+    var ss   = SpreadsheetApp.openById(SS_ID);
+    var sh   = ss.getSheetByName('CAJA_MOVIMIENTOS');
+    if (!sh) return { ok: true, registros: [] };
+
+    var rows  = sh.getDataRange().getValues();
+    var limite = (datos && datos.limite) ? parseInt(datos.limite) : 200;
+    var filtFecha = datos && datos.fecha ? String(datos.fecha).trim() : null;
+
+    // Headers esperados: FECHA, HORA, TIPO, MOTIVO, MONTO, MEDIO, CATEGORIA, OBSERVACION
+    var registros = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r     = rows[i];
+      var tipo  = String(r[2] || '').toUpperCase();
+      var fecha = r[0] instanceof Date
+        ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : String(r[0] || '').trim();
+
+      // Solo EGRESO / RETIRO (excluye INGRESO de abono fiado)
+      if (tipo !== 'EGRESO' && tipo !== 'RETIRO' && tipo !== 'GASTO') continue;
+
+      // Filtro por fecha si vino
+      if (filtFecha && fecha !== filtFecha) continue;
+
+      registros.push({
+        fecha    : fecha,
+        hora     : String(r[1] || ''),
+        tipo     : tipo,
+        motivo   : String(r[3] || ''),
+        monto    : parseFloat(r[4]) || 0,
+        medio    : String(r[5] || 'EFECTIVO'),
+        categoria: String(r[6] || ''),
+        obs      : String(r[7] || '')
+      });
+    }
+
+    // Más reciente primero
+    registros.sort(function(a, b) {
+      return (b.fecha + b.hora).localeCompare(a.fecha + a.hora);
+    });
+
+    if (registros.length > limite) registros = registros.slice(0, limite);
+
+    return { ok: true, registros: registros };
+  } catch(e) {
+    return { ok: false, error: e.toString(), registros: [] };
+  }
+}
+
+// ── 2. getSalidasInternas ────────────────────────────────────
+// Devuelve registros de la hoja SALIDAS (merma, consumo, etc.)
+// Params: { fecha: 'yyyy-MM-dd' (opcional), limite: N }
+function getSalidasInternas(datos) {
+  try {
+    var ss  = SpreadsheetApp.openById(SS_ID);
+    var sh  = ss.getSheetByName('SALIDAS');
+    if (!sh) return { ok: true, registros: [] };
+
+    var rows     = sh.getDataRange().getValues();
+    var limite   = (datos && datos.limite) ? parseInt(datos.limite) : 200;
+    var filtFecha = datos && datos.fecha ? String(datos.fecha).trim() : null;
+
+    // Headers: Fecha, Hora, Producto, ID, Cantidad, Costo Unit., Precio Venta, Motivo, Observación, Vendedor
+    var registros = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r     = rows[i];
+      var fecha = r[0] instanceof Date
+        ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : String(r[0] || '').trim();
+
+      if (filtFecha && fecha !== filtFecha) continue;
+
+      registros.push({
+        fecha   : fecha,
+        hora    : String(r[1] || ''),
+        producto: String(r[2] || ''),
+        id      : String(r[3] || ''),
+        cantidad: parseFloat(r[4]) || 0,
+        costo   : parseFloat(r[5]) || 0,
+        precio  : parseFloat(r[6]) || 0,
+        motivo  : String(r[7] || '').toUpperCase(),
+        obs     : String(r[8] || ''),
+        vendedor: String(r[9] || '')
+      });
+    }
+
+    // Más reciente primero
+    registros.sort(function(a, b) {
+      return (b.fecha + b.hora).localeCompare(a.fecha + a.hora);
+    });
+
+    if (registros.length > limite) registros = registros.slice(0, limite);
+
+    return { ok: true, registros: registros };
+  } catch(e) {
+    return { ok: false, error: e.toString(), registros: [] };
+  }
+}
+
+// ── 3. getPromoEspecial ──────────────────────────────────────
+// Devuelve productos de categoría PROMOS para el flyer
+// Igual a getJuevesCervecero pero filtra PROMOS en lugar de cervezas
+function getPromoEspecial() {
+  try {
+    var ss    = SpreadsheetApp.openById(SS_ID);
+    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
+    var shCfg = ss.getSheetByName(HOJA_CONFIG);
+
+    if (!shInv) return { success: false, productos: [] };
+
+    var invRows = shInv.getDataRange().getValues();
+    var tz      = Session.getScriptTimeZone();
+    var hoy     = new Date();
+    var diaSem  = hoy.getDay(); // 0=DOM..6=SÁB → mapeamos a col LUN=1
+    var colDia  = diaSem === 0 ? 7 : diaSem; // domingo → col 7
+
+    // Hora de cierre desde config_sistema
+    var horaCierre = 22;
+    if (shCfg) {
+      var cfgRows = shCfg.getDataRange().getValues();
+      for (var c = 1; c < cfgRows.length; c++) {
+        var lk = String(cfgRows[c][0] || '').toLowerCase().trim();
+        if (lk === 'horario cierre local') {
+          var v = cfgRows[c][colDia];
+          if (v !== '' && !isNaN(parseFloat(v))) { horaCierre = parseFloat(v); break; }
+        }
+      }
+    }
+
+    var productos = [];
+    for (var i = 1; i < invRows.length; i++) {
+      var row  = invRows[i];
+      var cat  = String(row[2] || '').toUpperCase().trim();
+      var est  = String(row[19] || '').toUpperCase();
+      var stock = parseFloat(row[5]) || 0;
+
+      if (cat !== 'PROMOS') continue;
+      if (est === '❌' || est === 'INACTIVO') continue;
+      if (stock <= 0) continue;
+
+      var precio      = parseFloat(row[1]) || 0;
+      var precioFinal = parseFloat(row[10]) || precio;
+      var precioAntes = parseFloat(row[11]) || 0;
+
+      productos.push({
+        nombre      : String(row[0] || ''),
+        precio      : precioAntes > 0 ? precioAntes : precio,
+        precioPromo  : precioFinal,
+        stock       : stock,
+        categoria   : cat
+      });
+    }
+
+    // Ordenar por mayor ahorro absoluto
+    productos.sort(function(a, b) {
+      var ahorroA = (a.precio - a.precioPromo);
+      var ahorroB = (b.precio - b.precioPromo);
+      return ahorroB - ahorroA;
+    });
+
+    return { success: true, productos: productos, horaCierre: horaCierre };
+  } catch(e) {
+    return { success: false, productos: [], error: e.toString() };
+  }
+}
+
+// ── 4. getHorarioLocal ───────────────────────────────────────
+// Lee/escribe los horarios de apertura y cierre por día
+// Params para leer: {} → devuelve { ok, horarios: [{dia, apertura, cierre}] }
+// Params para escribir: { dia: 'LUN', apertura: 9, cierre: 22 }
+function getHorarioLocal(datos) {
+  try {
+    var ss    = SpreadsheetApp.openById(SS_ID);
+    var shCfg = ss.getSheetByName(HOJA_CONFIG);
+    if (!shCfg) return { ok: false, error: 'Sin hoja config_sistema' };
+
+    var dias   = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
+    var cfgRows = shCfg.getDataRange().getValues();
+
+    // ── ESCRITURA ──
+    if (datos && datos.dia) {
+      var idxDia = dias.indexOf(String(datos.dia).toUpperCase().trim());
+      if (idxDia < 0) return { ok: false, error: 'Día inválido' };
+      var col = idxDia + 2; // col B=2 → LUN
+
+      // Buscar/crear filas de apertura y cierre
+      var filaApertura = -1, filaCierre = -1;
+      for (var i = 1; i < cfgRows.length; i++) {
+        var lk = String(cfgRows[i][0] || '').toLowerCase().trim();
+        if (lk === 'horario apertura local') filaApertura = i + 1;
+        if (lk === 'horario cierre local')   filaCierre   = i + 1;
+      }
+      if (filaApertura > 0 && datos.apertura !== undefined)
+        shCfg.getRange(filaApertura, col).setValue(datos.apertura);
+      if (filaCierre > 0 && datos.cierre !== undefined)
+        shCfg.getRange(filaCierre, col).setValue(datos.cierre);
+      return { ok: true };
+    }
+
+    // ── LECTURA ──
+    var horApertura = [9,9,9,9,9,9,9];
+    var horCierre   = [22,22,22,22,22,22,22];
+
+    for (var j = 1; j < cfgRows.length; j++) {
+      var lk2 = String(cfgRows[j][0] || '').toLowerCase().trim();
+      if (lk2 === 'horario apertura local') {
+        for (var d = 0; d < 7; d++) {
+          var v = cfgRows[j][d + 1];
+          if (v !== '' && !isNaN(parseFloat(v))) horApertura[d] = parseFloat(v);
+        }
+      }
+      if (lk2 === 'horario cierre local') {
+        for (var d2 = 0; d2 < 7; d2++) {
+          var v2 = cfgRows[j][d2 + 1];
+          if (v2 !== '' && !isNaN(parseFloat(v2))) horCierre[d2] = parseFloat(v2);
+        }
+      }
+    }
+
+    var horarios = dias.map(function(dia, i) {
+      return { dia: dia, apertura: horApertura[i], cierre: horCierre[i] };
+    });
+
+    return { ok: true, horarios: horarios };
+  } catch(e) {
+    return { ok: false, error: e.toString() };
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// GENERAR LISTA DE COMPRA — lee inventario y llena hoja
+// ══════════════════════════════════════════════════════
+function actualizarListaCompra() {
+  try {
+    var ss    = SpreadsheetApp.openById(SS_ID);
+    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
+    var shList = ss.getSheetByName('Lista de compra');
+
+    if (!shInv)  return { ok: false, error: 'Sin hoja inventario' };
+    if (!shList) {
+      shList = ss.insertSheet('Lista de compra');
+    }
+
+    // Limpiar todo menos encabezado
+    var lastRow = shList.getLastRow();
+    if (lastRow > 1) shList.deleteRows(2, lastRow - 1);
+
+    // Asegurar encabezado
+    shList.getRange(1,1,1,7).setValues([['PRODUCTO','STOCK','MÍNIMO','FALTANTE','PRECIO','TOTAL','PROVEEDOR']]);
+    shList.getRange(1,1,1,7).setFontWeight('bold')
+      .setBackground('#1B4332').setFontColor('white');
+
+    var invData = shInv.getDataRange().getValues();
+    var tz  = Session.getScriptTimeZone();
+    var hoy = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+    var filas = [];
+
+    for (var i = 1; i < invData.length; i++) {
+      var row      = invData[i];
+      var nombre   = String(row[0]  || '').trim();
+      var precio   = parseFloat(row[1])  || 0;
+      var cat      = String(row[2]  || '').trim().toUpperCase();
+      var prov     = String(row[4]  || '').trim();
+      var stock    = parseFloat(row[5])  || 0;
+      var estado   = String(row[19] || '').toUpperCase();
+      var stockMin = parseFloat(row[13]) || 0; // col N = stock_min_popup
+
+      if (!nombre) continue;
+      if (estado === '❌' || estado === 'INACTIVO') continue;
+      if (stockMin <= 0) continue;          // sin mínimo definido → no incluir
+      if (stock >= stockMin) continue;      // stock ok → no incluir
+
+      var faltante = Math.max(0, stockMin - stock);
+      var total    = Math.round(faltante * precio);
+
+      filas.push([nombre, stock, stockMin, faltante, precio, total, prov]);
+    }
+
+    // Ordenar: más urgentes primero (mayor faltante relativo)
+    filas.sort(function(a,b) {
+      var urgA = a[1] === 0 ? 999 : (a[3]/a[2]);
+      var urgB = b[1] === 0 ? 999 : (b[3]/b[2]);
+      return urgB - urgA;
+    });
+
+    if (filas.length > 0) {
+      shList.getRange(2, 1, filas.length, 7).setValues(filas);
+      // Formato columnas de precio
+      shList.getRange(2, 5, filas.length, 2).setNumberFormat('$#,##0');
+      // Color rojo para stock 0
+      for (var j = 0; j < filas.length; j++) {
+        if (filas[j][1] === 0) {
+          shList.getRange(j+2, 1, 1, 7).setBackground('#FFEBEE');
+        }
+      }
+    }
+
+    return { ok: true, total: filas.length };
+  } catch(e) {
+    return { ok: false, error: e.toString() };
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// CONFIG_UI — devuelve todas las claves de la hoja CONFIG_UI
+// ══════════════════════════════════════════════════════════
+function getConfigUI() {
+  try {
+    var ss = SpreadsheetApp.openById(SS_ID);
+    var sh = ss.getSheetByName('CONFIG_UI');
+    if (!sh) return { ok: false, error: 'Sin hoja CONFIG_UI', config: {} };
+
+    var data = sh.getDataRange().getValues();
+    var config = {};
+
+    for (var i = 1; i < data.length; i++) {
+      var clave = String(data[i][0] || '').trim();
+      var valor = data[i][1];
+      if (!clave || clave.startsWith('──')) continue;
+      // Convertir a string salvo números puros
+      config[clave] = (valor === null || valor === undefined || valor === '')
+        ? '' : valor;
+    }
+    // Procesar VENDEDORES_EXCLUIR como array
+    if (config['VENDEDORES_EXCLUIR']) {
+      config['VENDEDORES_EXCLUIR_ARR'] = String(config['VENDEDORES_EXCLUIR'])
+        .split(',').map(function(v){ return v.trim().toUpperCase(); }).filter(Boolean);
+    } else {
+      config['VENDEDORES_EXCLUIR_ARR'] = [];
+    }
+    return { ok: true, config: config };
+  } catch(e) {
+    return { ok: false, error: e.toString(), config: {} };
   }
 }

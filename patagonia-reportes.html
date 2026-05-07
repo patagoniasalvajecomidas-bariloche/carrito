@@ -320,7 +320,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 const API_URL='https://script.google.com/macros/s/AKfycbw4uaR6IgUrl63JB_GCgZFWhRfLCcTUxhDYOtJJFUK4aTwN8PiF4fomibiOnOEXZFzE/exec';
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEM=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const EXCLUIR_VENDEDORES=['DIEGO','DIEGO REAL']; // no aparecen en reportes
+let EXCLUIR_VENDEDORES=[]; // se carga desde CONFIG_UI
+
+async function _cargarExcluirVendedores() {
+    try {
+        const r = await fetch(API_URL+'?action=getConfigUI&t='+Date.now(),
+                              {redirect:'follow',signal:AbortSignal.timeout(6000)});
+        const d = await r.json();
+        if (d.ok && d.config && d.config['VENDEDORES_EXCLUIR_ARR']) {
+            EXCLUIR_VENDEDORES = d.config['VENDEDORES_EXCLUIR_ARR'];
+        }
+    } catch(e) { /* usa default vacío */ }
+}
 const normVend=v=>(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toUpperCase();
 
 let raw=null;
@@ -1933,7 +1944,7 @@ function descargarExcel(){
 }
 // ====== FIN EXPORTAR EXCEL ======
 
-init();
+_cargarExcluirVendedores().then(()=>init());
 
 // ══════════════════════════════════════════════════════════════
 // PANEL FIADO — vista filtrada para un cliente específico
@@ -1970,7 +1981,8 @@ function _renderPanelFiado(clienteFiltro) {
     const fecha = t.fechaStr || '';
     const [a,m,d] = fecha.split('-');
     const fLabel = d ? (parseInt(d)+' de '+MESES[parseInt(m)-1]+' '+a) : fecha;
-    const esPagado = (t.metodo||'').toUpperCase().includes('PAGADO');
+    const esPagado     = (t.metodo||'').toUpperCase().includes('PAGADO');
+    const esPendVencido = !esPagado && t.fechaVencStr && new Date(t.fechaVencStr+'T12:00:00') < new Date();
     const fPhone = extractFiadoPhone(t.metodo);
 
     const waTxt = safeEnc(
@@ -1988,13 +2000,16 @@ function _renderPanelFiado(clienteFiltro) {
       ? 'intent://send/'+fPhone+'?text='+waTxt+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end'
       : 'https://wa.me/?text='+waTxt;
 
-    return '<div class="tkt tkt-fiado" style="margin-bottom:10px;'+
-      (esPagado ? 'opacity:0.65;' : 'border-left:3px solid #f9a825 !important;')+'">' +
+    const _borderColor = esPagado ? '#388e3c' : (esPendVencido ? '#b71c1c' : '#e65100');
+    const _bgColor     = esPagado ? '#f1f8e9' : (esPendVencido ? '#ffebee' : '#fff8e1');
+    return '<div class="tkt tkt-fiado" style="margin-bottom:10px;background:'+_bgColor+
+      ';border-left:4px solid '+_borderColor+' !important;'+
+      (esPagado ? 'opacity:0.75;' : '')+'">' +
       '<div class="tkt-hdr">'+
         '<span>'+(esPagado?'✅':'⏳')+' #'+t.ticket+
         ' <span style="font-size:.65rem;background:'+(esPagado?'#2e7d32':'#e65100')+
         ';color:#fff;padding:1px 6px;border-radius:6px;">'+
-        (esPagado?'PAGADO':'PENDIENTE')+'</span></span>'+
+        (esPagado ? 'PAGADO' : esPendVencido ? '🔴 VENCIDO' : '⏳ PENDIENTE')+'</span></span>'+
         '<span>'+fLabel+'</span>'+
       '</div>'+
       prods.map(p =>
@@ -2057,7 +2072,7 @@ function _renderPanelFiado(clienteFiltro) {
           'letter-spacing:.5px;user-select:none;">'+
           '✅ COBRADOS ('+pagados.length+') — toca para ver ▼</div>'+
         '<div style="display:none;">'+
-          pagados.sort((a,b)=>b.fechaStr.localeCompare(a.fechaStr)).map(renderTicketFiado).join('')+
+          pagados.sort((a,b)=>b.fechaStr.localeCompare(a.fechaStr)).slice(0,10).map(renderTicketFiado).join('')+
         '</div>'+
       '</div>' : ''
     )+
