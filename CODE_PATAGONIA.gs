@@ -3529,3 +3529,42 @@ function getConfigUI() {
     return { ok: false, error: e.toString(), config: {} };
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// CONFIG_UI — colorear celdas con preview visual del color hex
+// ══════════════════════════════════════════════════════════════
+function colorearConfigUI() {
+  const sh = SpreadsheetApp.openById(SS_ID).getSheetByName('CONFIG_UI');
+  if (!sh) return;
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return;
+  const values = sh.getRange(2, 1, lastRow - 1, 2).getValues();
+  values.forEach((row, i) => {
+    const color = row[1];
+    if (typeof color === 'string' && color.match(/^#([0-9A-F]{3}){1,2}$/i)) {
+      const cell = sh.getRange(i + 2, 2);
+      cell.setBackground(color);
+      const rgb = hexToRgb(color);
+      const luminancia = (0.299 * rgb.r) + (0.587 * rgb.g) + (0.114 * rgb.b);
+      cell.setFontColor(luminancia > 186 ? '#000000' : '#ffffff');
+    }
+  });
+}
+
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) {
+    hex = hex.split('').map(x => x + x).join('');
+  }
+  const num = parseInt(hex, 16);
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+}
+
+// Trigger automático: cada vez que editás CONFIG_UI colorea al instante
+function onEdit(e) {
+  try {
+    const sh = e.source.getActiveSheet();
+    if (sh.getName() !== 'CONFIG_UI') return;
+    colorearConfigUI();
+  } catch(err) {}
+}
