@@ -1690,7 +1690,7 @@
                 <!-- Alias grande -->
                 <div style="margin-top:10px;background:#e8f5e9;border-radius:10px;padding:10px;">
                     <div style="font-size:0.72rem;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Alias de transferencia</div>
-                    <div style="font-size:1.4rem;font-weight:900;color:#1b5e20;letter-spacing:1px;">pago.patagonia</div>
+                    <div class="alias-transferencia-txt" style="font-size:1.4rem;font-weight:900;color:#1b5e20;letter-spacing:1px;">${_cfg('ALIAS_TRANSFERENCIA','pago.patagonia')}</div>
                 </div>
                 <div style="background:#fff3e0;border-radius:10px;padding:8px 12px;
                             font-size:0.78rem;color:#e65100;font-weight:700;margin-top:8px;
@@ -1770,7 +1770,100 @@ function badgeStock(stock) {
 }
 
 // ========== CONFIG ==========
-const API_URL = 'https://script.google.com/macros/s/AKfycbw4uaR6IgUrl63JB_GCgZFWhRfLCcTUxhDYOtJJFUK4aTwN8PiF4fomibiOnOEXZFzE/exec'; // ← REEMPLAZÁ con tu URL de Google Apps Script
+const API_URL = 'https://script.google.com/macros/s/AKfycbw4uaR6IgUrl63JB_GCgZFWhRfLCcTUxhDYOtJJFUK4aTwN8PiF4fomibiOnOEXZFzE/exec';
+
+// ══ CONFIG_UI — se carga desde la planilla al iniciar ══
+let _cfgUI = {};
+
+function _cfg(clave, defecto) {
+    const v = _cfgUI[clave];
+    return (v !== undefined && v !== null && v !== '') ? v : defecto;
+}
+
+async function cargarConfigUI() {
+    try {
+        const r = await fetch(API_URL + '?action=getConfigUI&t=' + Date.now(),
+                              { redirect:'follow', signal: AbortSignal.timeout(8000) });
+        const d = await r.json();
+        if (d.ok && d.config) {
+            _cfgUI = d.config;
+            _aplicarConfigUI();
+        }
+    } catch(e) {
+        console.warn('CONFIG_UI no disponible, usando defaults hardcodeados:', e.message);
+    }
+}
+
+function _aplicarConfigUI() {
+    // ── Colores CSS variables ──
+    const root = document.documentElement.style;
+    if (_cfg('COLOR_PRIMARIO',''))   root.setProperty('--verde',      _cfg('COLOR_PRIMARIO',''));
+    if (_cfg('COLOR_SECUNDARIO','')) root.setProperty('--verde-claro', _cfg('COLOR_SECUNDARIO',''));
+    if (_cfg('COLOR_HEADER_1',''))   root.setProperty('--header-bg-1', _cfg('COLOR_HEADER_1',''));
+    if (_cfg('COLOR_HEADER_2',''))   root.setProperty('--header-bg-2', _cfg('COLOR_HEADER_2',''));
+    if (_cfg('COLOR_FONDO',''))      root.setProperty('--fondo',        _cfg('COLOR_FONDO',''));
+
+    // ── WiFi ──
+    if (_cfg('WIFI_SSID',''))     WIFI_SSID     = String(_cfg('WIFI_SSID',''));
+    if (_cfg('WIFI_PASSWORD','')) WIFI_PASSWORD = String(_cfg('WIFI_PASSWORD',''));
+
+    // ── Vendedores ──
+    const v1 = _cfg('VENDEDOR_1','');
+    const v2 = _cfg('VENDEDOR_2','');
+    const v3 = _cfg('VENDEDOR_3','');
+    const vends = [v1,v2,v3].filter(Boolean);
+    if (vends.length) VENDEDORES_DEFAULT = vends;
+
+    // ── Nombre del local en header ──
+    const nombre = _cfg('NOMBRE_LOCAL','');
+    if (nombre) {
+        document.querySelectorAll('.nombre-local-txt').forEach(el => el.textContent = nombre);
+        const hdr = document.querySelector('.header-title, .app-nombre, #appNombre');
+        if (hdr && !hdr.classList.contains('no-cfg')) hdr.textContent = nombre;
+    }
+
+    // ── Alias de transferencia ──
+    const alias = _cfg('ALIAS_TRANSFERENCIA','');
+    if (alias) {
+        document.querySelectorAll('.alias-transferencia-txt').forEach(el => el.textContent = alias);
+    }
+
+    // ── PWA title ──
+    const pwaNombre = _cfg('PWA_NOMBRE','');
+    if (pwaNombre) document.title = pwaNombre + ' — POS';
+
+    // ── Favicon ──
+    const favicon = _cfg('PWA_FAVICON','');
+    if (favicon) {
+        const link = document.querySelector("link[rel='icon'], link[rel='apple-touch-icon']");
+        if (link) link.href = favicon;
+    }
+
+    // ── Badge colores ──
+    const badgeMap = {
+        'BADGE_RELAMPAGO':  '--badge-relampago',
+        'BADGE_DESTACADAS': '--badge-destacadas',
+        'BADGE_ESPECIALES': '--badge-especiales',
+        'BADGE_ULTIMAS':    '--badge-ultimas',
+    };
+    Object.entries(badgeMap).forEach(([k,v]) => {
+        const val = _cfg(k,'');
+        if (val) root.setProperty(v, val);
+    });
+
+    // ── Botones ──
+    const btnMap = {
+        'BTN_COBRAR_BG':   '--btn-cobrar-bg',
+        'BTN_COBRAR_TXT':  '--btn-cobrar-txt',
+        'BTN_CARRITO_BG':  '--btn-carrito-bg',
+    };
+    Object.entries(btnMap).forEach(([k,v]) => {
+        const val = _cfg(k,'');
+        if (val) root.setProperty(v, val);
+    });
+
+    console.log('✅ CONFIG_UI aplicada:', Object.keys(_cfgUI).length, 'claves');
+}
 
 // Timeout unificado para todas las llamadas a Apps Script
 const API_TIMEOUT_MS = 25000;
@@ -4382,7 +4475,7 @@ function generarQRTransferencia(monto) {
     qrDiv.innerHTML = '';
 
     // Texto estándar CBU/alias para transferencias argentinas
-    const alias = 'pago.patagonia';
+    const alias = _cfg('ALIAS_TRANSFERENCIA', 'pago.patagonia');
     // QR con solo el alias — compatible con todas las billeteras argentinas
     // El cliente escanea, se abre su app con el alias precargado, ingresa el monto
     const texto = alias;
@@ -4982,7 +5075,7 @@ const VENDEDOR_KEY = 'patagonia_vendedor';
 const VENDEDORES_KEY = 'patagonia_vendedores';
 let vendedorActual = '';
 
-const VENDEDORES_DEFAULT = ['Titular', 'Empleado'];
+let VENDEDORES_DEFAULT = ['Titular', 'Empleado'];
 
 function getVendedores() {
     try {
@@ -5513,7 +5606,7 @@ function sugerirRelampago() {
                             </button>
                         </div>
                         <div style="display:flex;gap:10px;margin-bottom:10px;">
-                            <button onclick="window.open('https://patagonia-salvaje.vercel.app','_blank')"
+                            <button onclick="window.open(_cfg('URL_SITIO','https://patagonia-salvaje.vercel.app'),'_blank')"
                                     style="flex:1;padding:12px;border:1px solid #ff6f00;border-radius:14px;
                                            background:white;color:#e65100;font-weight:700;cursor:pointer;">
                                 👁 Ver página
@@ -6832,7 +6925,7 @@ cargarProductos().then(() => {
     <div style="background:#fafafa;border-radius:12px;padding:12px 16px;text-align:left;">
       <div style="font-size:0.72rem;color:#777;">Contraseña</div>
       <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-weight:800;font-size:0.95rem;color:#333;">patagonia2024</div>
+        <div style="font-weight:800;font-size:0.95rem;color:#333;">${WIFI_PASSWORD}</div>
         <button onclick="copiarClaveWifi()" style="background:none;border:1px solid #ccc;border-radius:8px;padding:4px 10px;font-size:0.75rem;cursor:pointer;color:#555;">📋 Copiar</button>
       </div>
     </div>
@@ -6842,8 +6935,8 @@ cargarProductos().then(() => {
 <script>
 // ── WiFi QR ──
 // MOBILE ya declarado en el script principal
-const WIFI_SSID = 'PATAGONIA-SALVAJE';
-const WIFI_PASSWORD = 'patagonia2024';
+let WIFI_SSID = 'PATAGONIA-SALVAJE';
+let WIFI_PASSWORD = 'patagonia2024';
 let _wifiQRGenerado = false;
 
 function abrirWifiQR() {
@@ -7033,7 +7126,7 @@ function _generarCanvasFlyer(prods, horaCierre) {
 
     // Subtítulo
     ctx.font='italic 16px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.75)';
-    ctx.fillText('Frente al Llao Llao · Bariloche',W/2,112);
+    ctx.fillText(_cfg('FLYER_SUBTITULO','Frente al Llao Llao · Bariloche'),W/2,112);
 
     // Hora y emoji montaña
     ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.65)';
@@ -7150,13 +7243,13 @@ function _generarCanvasFlyer(prods, horaCierre) {
     ctx.shadowBlur=0;
 
     ctx.font='13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
-    ctx.fillText('Frente al Hotel Llao Llao · Bariloche · Río Negro',W/2,fy+58);
+    ctx.fillText(_cfg('FLYER_TAGLINE','Frente al Hotel Llao Llao · Bariloche · Río Negro'),W/2,fy+58);
 
     ctx.font='12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.35)';
     ctx.fillText('Stock limitado · Precios de hoy · Hasta agotar',W/2,fy+76);
 
     ctx.font='bold 11px sans-serif'; ctx.fillStyle='rgba(212,175,55,0.7)';
-    ctx.fillText('🛒 patagonia-salvaje.vercel.app',W/2,fy+96);
+    ctx.fillText('🛒 ' + _cfg('FLYER_FOOTER_URL','patagonia-salvaje.vercel.app'),W/2,fy+96);
 
     // Línea dorada inferior
     ctx.strokeStyle=lineGold; ctx.lineWidth=2;
@@ -7187,7 +7280,7 @@ async function compartirFlyerAdminWA() {
                 .catch(()=>{});
         } else {
             descargarFlyerAdmin();
-            setTimeout(() => window.open('https://wa.me/?text='+encodeURIComponent('🔥 ¡PROMOS ESPECIALES en Patagonia Salvaje!\n🏔️ Frente al Llao Llao · Bariloche\n🛒 https://patagonia-salvaje.vercel.app'),'_blank'), 800);
+            setTimeout(() => window.open('https://wa.me/?text='+encodeURIComponent((_cfg('FLYER_WA_MSG','🔥 ¡PROMOS ESPECIALES en Patagonia Salvaje!\n🏔️ Frente al Llao Llao · Bariloche') + '\n🛒 ' + _cfg('URL_SITIO','https://patagonia-salvaje.vercel.app'))),'_blank'), 800);
         }
     },'image/png');
 }
@@ -7975,6 +8068,8 @@ window.t9Limpiar = function(){};
 
 // Restaurar badge de notificaciones del día al arrancar
 document.addEventListener('DOMContentLoaded', function() {
+    // Cargar CONFIG_UI en background (no bloquea)
+    cargarConfigUI();
     setTimeout(() => {
         const arr = _cargarNotifPos ? _cargarNotifPos() : [];
         const hoy = fechaArgentina(0);
@@ -8639,7 +8734,7 @@ function _renderPanelFiados() {
         }
 
         if (pagados.length) {
-            const MAX_PAG = 3;
+            const MAX_PAG = parseInt(_cfg('FIADOS_PAGADOS_LIMITE', 3)) || 3;
             const visible = pagados.slice(0, MAX_PAG);
             const ocultos = pagados.slice(MAX_PAG);
             html += `<div style="font-size:0.75rem;font-weight:700;color:#388e3c;letter-spacing:1px;text-transform:uppercase;padding:12px 4px 6px;">
@@ -10173,7 +10268,7 @@ function _enviarComprobanteVentaFiado(datosFiado, items, total, ticketNum) {
     }).join('\n');
 
     const msg = [
-        '🛒 *PATAGONIA SALVAJE*',
+        _cfg('TICKET_HEADER','🛒 *PATAGONIA SALVAJE*'),
         `📋 *Comprobante de Venta Fiada* ${ticket}`,
         `📅 ${fecha} · ${hora}hs`,
         '',
