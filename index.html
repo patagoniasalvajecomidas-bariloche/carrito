@@ -1093,6 +1093,10 @@
                     style="flex:1;font-size:0.7rem;font-weight:700;padding:4px 2px;border-radius:8px;border:1.5px solid;cursor:pointer;transition:all 0.2s;background:rgba(13,71,161,0.3);border-color:rgba(249,168,37,0.6);color:rgba(255,255,255,0.5);">
                 🎉 PRO
             </button>
+            <button id="toggleBebidas" onclick="toggleBebidas()" title="Promo Bebidas — override manual"
+                    style="flex:1;font-size:0.7rem;font-weight:700;padding:4px 2px;border-radius:8px;border:1.5px solid;cursor:pointer;transition:all 0.2s;background:rgba(0,96,150,0.3);border-color:rgba(30,180,255,0.5);color:rgba(255,255,255,0.45);">
+                🍺 BEB
+            </button>
             <button onclick="abrirFlyerAdmin()" title="Generar flyer Promo Especial"
                     style="flex:1;font-size:0.7rem;font-weight:700;padding:4px 2px;border-radius:8px;border:1.5px solid;cursor:pointer;background:rgba(249,168,37,0.2);border-color:rgba(249,168,37,0.5);color:#f9a825;">
                 🖼️ FL
@@ -1528,11 +1532,6 @@
         </div>
         <div class="resumen-card" id="resumenCard"><!-- se llena dinámico --></div>
         <div class="resumen-ventas-lista" id="resumenLista"><!-- se llena dinámico --></div>
-        <div id="resumenMovimientosHoy" style="
-            background:rgba(0,0,0,0.25);border-radius:12px;padding:10px 14px;
-            margin:10px 0;min-height:30px;">
-            <!-- salidas y egresos del día —se llena dinámico -->
-        </div>
         <button class="btn-cerrar-dia" onclick="cerrarDia()">🔒 Cerrar turno y resetear</button>
         <button onclick="abrirModalResetTotal()" style="
             margin:8px auto 0; display:block; width:100%; max-width:320px;
@@ -4043,78 +4042,9 @@ function abrirResumen() {
             `).join('');
     }
 
-    // ── SALIDAS Y GASTOS DEL DÍA ──
-    const hoyStr = fechaArgentina();
-    _cargarResumenMovimientosHoy(hoyStr);
-
     document.getElementById('modalResumen').classList.add('open');
 }
 
-async function _cargarResumenMovimientosHoy(hoyStr) {
-    const seccion = document.getElementById('resumenMovimientosHoy');
-    if (!seccion) return;
-    seccion.innerHTML = '<div style="color:#aaa;font-size:0.8rem;text-align:center;padding:8px;">⏳ Cargando...</div>';
-
-    try {
-        // Cargar salidas internas y egresos de caja en paralelo
-        const [resSal, resEg] = await Promise.all([
-            _apiFetch('getSalidasInternas', { fecha: hoyStr, limite: 50 }),
-            _apiFetch('getCajaEgresos',     { fecha: hoyStr, limite: 50 })
-        ]);
-
-        const salidas  = (resSal.registros  || []);
-        const egresos  = (resEg.registros   || []);
-
-        if (!salidas.length && !egresos.length) {
-            seccion.innerHTML = '<div style="color:#aaa;font-size:0.8rem;text-align:center;padding:8px 0;">Sin salidas ni gastos hoy</div>';
-            return;
-        }
-
-        let html = '';
-
-        // ── Salidas de productos (merma/consumo/ajuste) ──
-        if (salidas.length) {
-            const totalSalidas = salidas.reduce((s,r) => s + (r.costo * r.cantidad || 0), 0);
-            html += `<div style="font-size:0.72rem;font-weight:700;color:#ef9a9a;letter-spacing:.5px;padding:10px 0 4px;">
-                       📦 SALIDAS DE STOCK (${salidas.length})
-                     </div>`;
-            html += salidas.map(r => `
-                <div style="display:flex;justify-content:space-between;align-items:center;
-                            padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <div>
-                        <div style="font-size:0.8rem;color:#e0e0e0;">${r.producto.substring(0,32)}</div>
-                        <div style="font-size:0.7rem;color:#aaa;">${r.cantidad} u · ${r.motivo} · ${r.hora}</div>
-                    </div>
-                    <div style="font-size:0.82rem;color:#ef9a9a;font-weight:700;">
-                        ${r.costo > 0 ? '-$' + Math.round(r.costo * r.cantidad).toLocaleString('es-AR') : '—'}
-                    </div>
-                </div>`).join('');
-        }
-
-        // ── Egresos de caja (retiros/gastos) ──
-        if (egresos.length) {
-            const totalEgresos = egresos.reduce((s,r) => s + (r.monto || 0), 0);
-            html += `<div style="font-size:0.72rem;font-weight:700;color:#ffcc80;letter-spacing:.5px;padding:10px 0 4px;">
-                       💸 EGRESOS DE CAJA (${egresos.length}) · Total: $${Math.round(totalEgresos).toLocaleString('es-AR')}
-                     </div>`;
-            html += egresos.map(r => `
-                <div style="display:flex;justify-content:space-between;align-items:center;
-                            padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <div>
-                        <div style="font-size:0.8rem;color:#e0e0e0;">${(r.motivo || r.categoria || 'Egreso').substring(0,32)}</div>
-                        <div style="font-size:0.7rem;color:#aaa;">${r.tipo} · ${r.medio} · ${r.hora}</div>
-                    </div>
-                    <div style="font-size:0.82rem;color:#ffcc80;font-weight:700;">
-                        -$${Math.round(r.monto).toLocaleString('es-AR')}
-                    </div>
-                </div>`).join('');
-        }
-
-        seccion.innerHTML = html;
-    } catch(e) {
-        seccion.innerHTML = '<div style="color:#f57c00;font-size:0.78rem;text-align:center;padding:8px;">⚠️ No se pudieron cargar movimientos</div>';
-    }
-}
 
 function cerrarResumen() {
     document.getElementById('modalResumen').classList.remove('open');
@@ -6271,6 +6201,24 @@ async function cargarPoolsOfertas() {
     } catch(e) {
         console.warn('⚠️ No se pudo cargar pool promo especial:', e.message);
     }
+    // ── Cargar pool BEBIDAS ──
+    try {
+        const d3 = await _apiFetch('getPoolBebidas');
+        _poolBebidas.clear();
+        if (d3.success && d3.productos && d3.productos.length) {
+            d3.productos.forEach(p => {
+                const local = productos.find(lp => lp.name.trim().toUpperCase() === p.nombre.trim().toUpperCase());
+                if (local) _poolBebidas.set(local.id, {
+                    descuento  : p.descuento  || 0,
+                    precioPromo: p.precioPromo || local.price,
+                    esGancho   : p.esGancho   || false
+                });
+            });
+            console.log(`🍺 Pool bebidas: ${_poolBebidas.size} productos`);
+        }
+    } catch(e) {
+        console.warn('⚠️ No se pudo cargar pool bebidas:', e.message);
+    }
     _refreshResultadosBadges();
 }
 
@@ -6357,6 +6305,16 @@ function calcularOfertaPOS(producto, qty) {
     }
 
     // 0. PROMO ESPECIAL — prioridad sobre todo si el toggle está activo
+    // Pool bebidas independiente
+    if (_esBebidaPromoActiva() && _poolBebidas.has(producto.id)) {
+        const beb = _poolBebidas.get(producto.id);
+        r.precioFinal    = beb.precioPromo > 0 ? beb.precioPromo : Math.round(producto.price * (1 - (beb.descuento||0)/100));
+        r.precioOriginal = producto.price;
+        r.descuento      = beb.descuento || 0;
+        r.tipoOferta     = 'bebidas';
+        r.labelOferta    = beb.esGancho ? '🍺 GANCHO' : '🍺 PROMO';
+        r.colorOferta    = '#0288d1';
+    }
     if (_esCerveceroActivo() && _poolCervecero.has(producto.id)) {
         const jc = _poolCervecero.get(producto.id);
         const precioCalc = jc.precioPromo || Math.round(producto.price * (1 - jc.descuento / 100));
@@ -6708,10 +6666,19 @@ function iniciarToggleOfertas() {
     Object.keys(_TOGGLE_CONFIG).forEach(tipo => _pintarToggle(tipo, null));
     cargarEstadoToggles();
     _pintarToggleCervecero();
+    _pintarToggleBebidas();
 }
 
 // ── Promo Especial override ──
 // null = auto (por hora/día), true = forzado ON, false = forzado OFF
+// ── Pool Bebidas (ex cervecero — ahora solo categoría BEBIDAS) ──
+let _poolBebidas      = new Map(); // id → { descuento, precioPromo, esGancho }
+let _bebidasOverride  = localStorage.getItem('bebidas_ps_override');
+if (_bebidasOverride === 'true')  _bebidasOverride = true;
+else if (_bebidasOverride === 'false') _bebidasOverride = false;
+else _bebidasOverride = null;
+let _bebidasHoraCierre = 23;
+
 let _cerveceroOverride = localStorage.getItem('cervecero_ps_override');
 if (_cerveceroOverride === 'true')  _cerveceroOverride = true;
 else if (_cerveceroOverride === 'false') _cerveceroOverride = false;
@@ -6772,6 +6739,49 @@ function toggleCervecero() {
     mostrarToast(msg, nuevoEstado ? 'verde' : 'rojo');
     // Recargar pool cervecero y refrescar badges
     cargarPoolsOfertas().then(() => _refreshResultadosBadges());
+}
+
+// ══════════════════════════════════════════════════
+// TOGGLE BEBIDAS — promo diaria en categoría BEBIDAS
+// ══════════════════════════════════════════════════
+function _esBebidaPromoActiva() {
+    if (_bebidasOverride !== null) return _bebidasOverride;
+    // Auto: activo si hay productos en el pool
+    return _poolBebidas.size > 0;
+}
+
+function _pintarToggleBebidas() {
+    const btn = document.getElementById('toggleBebidas');
+    if (!btn) return;
+    const activo     = _esBebidaPromoActiva();
+    const esOverride = _bebidasOverride !== null;
+    btn.style.background  = activo ? 'rgba(0,96,150,0.6)'        : 'rgba(60,60,60,0.3)';
+    btn.style.borderColor = activo ? '#29b6f6'                    : 'rgba(150,150,150,0.4)';
+    btn.style.color       = activo ? '#29b6f6'                    : 'rgba(255,255,255,0.35)';
+    btn.textContent       = '🍺 BEB' + (activo ? ' ✓' : ' ✗') + (esOverride ? ' ⚡' : '');
+    btn.title = esOverride
+        ? 'Override manual activo — tocá para volver a auto'
+        : (activo ? 'Promo bebidas activa — hay productos con promo' : 'Sin bebidas con promo cargadas');
+}
+
+function toggleBebidas() {
+    const autoActivo   = _poolBebidas.size > 0;
+    if (_bebidasOverride === null) {
+        _bebidasOverride = !autoActivo;
+    } else {
+        _bebidasOverride = null;
+    }
+    if (_bebidasOverride === null) localStorage.removeItem('bebidas_ps_override');
+    else localStorage.setItem('bebidas_ps_override', String(_bebidasOverride));
+
+    _pintarToggleBebidas();
+    const activo = _esBebidaPromoActiva();
+    mostrarToast(
+        _bebidasOverride === null ? '🔄 Bebidas en modo automático'
+        : activo ? '🟢 🍺 Promo bebidas activada (manual)' : '🔴 🍺 Promo bebidas desactivada (manual)',
+        activo ? 'verde' : 'rojo'
+    );
+    _refreshResultadosBadges();
 }
 
 // Sincronizar badge de versión desde el <title>
