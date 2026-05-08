@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS</title>
+    <title>Patagonia Salvaje — POS v168</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6495,7 +6495,23 @@ function _pintarToggle(tipo, activo) {
         btn.style.borderColor = activo ? cfg.bordeActivo : 'rgba(100,150,100,0.5)';
         btn.style.color       = activo ? 'white' : 'rgba(150,200,150,0.8)';
         btn.style.opacity     = '1';
-        btn.textContent       = cfg.emoji + ' ' + cfg.label + (activo ? ' ⏰✓' : ' ⏰');
+        // Para ultimas: mostrar desde qué hora activa
+        if (tipo === 'ultimas') {
+            const hA = window._horaAperturaSistema || 9;
+            const hC = _horaCierreSistema || 22;
+            const dur = hC - hA;
+            const hayRot = [..._poolIdsUltimas.keys()].some(id => {
+                const p = (typeof productos !== 'undefined') && productos.find(pr => pr.id === id);
+                return p && ((p.rotacion||0) >= 4);
+            });
+            const umbral = Math.round(hC - dur * (hayRot ? 0.35 : 0.25));
+            btn.textContent = cfg.emoji + ' ' + cfg.label + (activo ? ' ⏰✓' : ` ⏰${umbral}hs`);
+            btn.title = activo
+                ? '🏷️ Últimas unidades activas — último cuarto del turno'
+                : `🏷️ Se activa automáticamente a las ${umbral}:00hs`;
+        } else {
+            btn.textContent = cfg.emoji + ' ' + cfg.label + (activo ? ' ⏰✓' : ' ⏰');
+        }
     } else {
         btn.style.background  = 'rgba(60,60,60,0.3)';
         btn.style.borderColor = 'rgba(150,150,150,0.4)';
@@ -6521,6 +6537,15 @@ async function _cargarHorarioSistema() {
             if (v !== null && v !== undefined) {
                 const n = parseFloat(String(v).split(':')[0]);
                 if (!isNaN(n)) _horaCierreSistema = n;
+            }
+        }
+        // También cargar apertura
+        const rowAp = cfg['horario|Horario apertura local'] || cfg['Horario apertura local'];
+        if (rowAp) {
+            const vAp = rowAp[diaIdx];
+            if (vAp !== null && vAp !== undefined) {
+                const nAp = parseFloat(String(vAp).split(':')[0]);
+                if (!isNaN(nAp)) window._horaAperturaSistema = nAp;
             }
         }
     } catch(e) { console.warn('⚠️ No se pudo leer horario:', e.message); }
@@ -6657,8 +6682,29 @@ function _tipoActivo(tipo) {
     const estado = _toggleEstado[tipo];
     if (estado === true)  return true;
     if (estado === false) return false;
-    // null = auto → usar _dentroDeHorario si está disponible, sino mostrar
-    return true; // seba21 es panel vendedor, en auto siempre muestra
+    // null = auto → para ultimas: lógica de último cuarto del turno
+    if (tipo === 'ultimas') return _ultimasAutoActivo();
+    return true;
+}
+
+function _ultimasAutoActivo() {
+    if (_poolIdsUltimas.size === 0) return false;
+    const ahora = new Date();
+    const arg   = new Date(ahora.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const horaActual   = arg.getHours() + arg.getMinutes() / 60;
+    const horaApertura = window._horaAperturaSistema || 9;
+    const horaCierre   = _horaCierreSistema || 22;
+    const duracion     = horaCierre - horaApertura;
+    if (duracion <= 0) return true;
+
+    // Alta rotación (≥4): activar al último 35% del turno
+    const hayAltaRotacion = [..._poolIdsUltimas.keys()].some(id => {
+        const p = (typeof productos !== 'undefined') && productos.find(pr => pr.id === id);
+        return p && ((p.rotacion || 0) >= 4);
+    });
+    const pct     = hayAltaRotacion ? 0.35 : 0.25;
+    const umbral  = horaCierre - (duracion * pct);
+    return horaActual >= umbral && horaActual < horaCierre;
 }
 
 function iniciarToggleOfertas() {
@@ -6784,13 +6830,21 @@ function toggleBebidas() {
     _refreshResultadosBadges();
 }
 
-// Sincronizar badge de versión desde el <title>
+// ── Badge de versión + log en consola ──
 (function(){
+    const VERSION = '168';
+    const BUILD   = new Date().toLocaleString('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        day:'2-digit', month:'2-digit', year:'2-digit',
+        hour:'2-digit', minute:'2-digit'
+    });
+    // Badge en header
     const el = document.getElementById('versionTag');
-    if (el) {
-        const m = document.title.match(/v(\d+)/);
-        el.textContent = m ? 'v' + m[1] : 'v167';
-    }
+    if (el) el.textContent = 'v' + VERSION;
+    // Log en consola
+    console.log('%c🛒 PATAGONIA SALVAJE POS', 'color:#52e88a;font-size:1.1rem;font-weight:900;');
+    console.log('%cv' + VERSION + '  |  Build: ' + BUILD, 'color:#aaa;font-size:0.85rem;');
+    console.log('%c' + window.location.href, 'color:#555;font-size:0.75rem;');
 })();
 
 // ── WakeLock: mantener pantalla encendida mientras la app está activa ──
