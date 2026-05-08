@@ -572,10 +572,31 @@ function renderApp(){
     return '<button class="'+cls+'" onclick="selMes('+mi+')">'+nm.substring(0,3)+(tieneData?'':'<br><span style="font-size:.55rem;opacity:.4">sin datos</span>')+'</button>';
   }).join('');
 
-  // Filtros método
+  // Filtros método — FIADO agrupado, expandible
+  const metodosFiado   = metodos.filter(m => m.includes('FIADO'));
+  const metodosNormales = metodos.filter(m => !m.includes('FIADO'));
+  const hayFiadoActivo  = metodosFiado.some(m => metActivos.has(m));
+  const fiadoExpanded   = typeof _fiadoExpanded !== 'undefined' ? _fiadoExpanded : false;
+
+  const pillsFiado = fiadoExpanded
+    ? metodosFiado.map(m =>
+        '<button class="chip'+(metActivos.has(m)?' activo':'')+
+        '" onclick="togMet(\''+m+'\')">🤝 '+m+'</button>'
+      ).join('')
+    : '';
+
+  const btnFiado = metodosFiado.length > 0
+    ? '<button class="chip'+(hayFiadoActivo?' activo':'')+
+      '" onclick="_toggleFiadoPills()" style="position:relative">'+
+      '🤝 FIADO'+(metodosFiado.length > 1 ? ' ('+metodosFiado.length+')' : '')+
+      (fiadoExpanded ? ' ▲' : ' ▼')+
+      '</button>'+pillsFiado
+    : '';
+
   const fMetH='<div class="chips-wrap">'+
     '<button class="chip'+(metActivos.has('TODOS')?' activo':'')+'" onclick="togMet(\'TODOS\')">📋 Todos</button>'+
-    metodos.map(m=>{const ic=m.includes('EFECTIVO')?'💵':m.includes('TRANSF')?'📱':m.includes('QR')?'📲':m.includes('POSNET')?'💳':'🔀';return'<button class="chip'+(metActivos.has(m)?' activo':'')+'" onclick="togMet(\''+m+'\')">'+ic+' '+m+'</button>';}).join('')+
+    metodosNormales.map(m=>{const ic=m.includes('EFECTIVO')?'💵':m.includes('TRANSF')?'📱':m.includes('QR')?'📲':m.includes('POSNET')?'💳':'🔀';return'<button class="chip'+(metActivos.has(m)?' activo':'')+'" onclick="togMet(\''+m+'\')">'+ic+' '+m+'</button>';}).join('')+
+    btnFiado+
     '<button class="chip chip-limpiar" onclick="deselTodo()">✕ Limpiar</button>'+
   '</div>';
 
@@ -2086,6 +2107,14 @@ function _renderPanelFiado(clienteFiltro) {
   '</div>';
 
   app.innerHTML = html;
+}
+
+
+// ── Toggle pills FIADO ──────────────────────────────
+let _fiadoExpanded = false;
+function _toggleFiadoPills() {
+  _fiadoExpanded = !_fiadoExpanded;
+  renderApp();
 }
 
 </script>
