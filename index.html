@@ -1305,18 +1305,6 @@
                     <button onclick="ajustarPrecio(100)" style="width:44px;height:44px;border-radius:50%;border:2px solid #c8e6c9;background:#f1f8f1;font-size:1.3rem;font-weight:900;cursor:pointer;color:#2e7d32;touch-action:manipulation;">+</button>
                 </div>
 
-                <!-- PROMO TOGGLE -->
-                <div id="ajustePromoWrap" style="margin-bottom:14px;display:none;">
-                    <div style="font-size:0.7rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;text-align:center;">🏷️ Promoción</div>
-                    <button id="ajustePromoBtn" onclick="toggleAjustePromo()"
-                            style="width:100%;padding:12px;border-radius:12px;border:2px solid #e0e0e0;
-                                   background:#fafafa;color:#888;font-size:0.92rem;font-weight:700;cursor:pointer;
-                                   transition:all 0.2s;">
-                        🏷️ Activar PROMO
-                    </button>
-                    <div id="ajustePromoInfo" style="font-size:0.75rem;text-align:center;margin-top:5px;min-height:16px;color:#aaa;"></div>
-                </div>
-
                 <!-- Guardar -->
                 <button onclick="guardarAjuste()" id="ajusteBtn"
                         style="width:100%;padding:14px;border:none;border-radius:12px;background:#1976d2;color:white;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:10px;">
@@ -2561,12 +2549,7 @@ function renderResultados(results, term = '') {
 
         const esNxMSinActivar = oferta.tieneOferta && oferta.tipoOferta === 'relampago' && precio === p.price;
         const precioAntes     = oferta.tipoOferta === 'normal' ? p.normal : p.price;
-        // ── PROMOS: precio tachado + precio promo ──
-        const esPromoDirecta  = p.category === 'PROMOS' && p.precioPromo > 0 && p.pctPromo > 0;
-        const precioMostrar   = esPromoDirecta ? p.precioPromo : precio;
-        const precioUnitHTML = esPromoDirecta
-            ? `<span style="font-size:.6rem;color:#999;text-decoration:line-through;margin-right:2px;">$${p.price.toLocaleString('es-AR')}</span><span style="background:#b71c1c;color:#fff;font-size:.7rem;font-weight:900;padding:1px 5px;border-radius:6px;">$${p.precioPromo.toLocaleString('es-AR')}</span>`
-            : (oferta.tieneOferta && !esNxMSinActivar)
+        const precioUnitHTML = (oferta.tieneOferta && !esNxMSinActivar)
             ? `<span style="font-size:.6rem;color:#999;text-decoration:line-through;margin-right:3px;">$${precioAntes.toLocaleString('es-AR')}</span><span style="color:#f9a825;font-weight:900;font-size:.72rem;">$${precio.toLocaleString('es-AR')}</span>`
             : `<span style="color:#666;font-size:.72rem;">$${p.price.toLocaleString('es-AR')}</span>`;
 
@@ -4959,92 +4942,9 @@ function seleccionarAjuste(id) {
         }).join('');
     }
     document.getElementById('ajustePanel').style.display = 'block';
-
-    // ── Toggle PROMO ──
-    _actualizarTogglePromoAjuste(p);
 }
 
 function selAjusteCategoria(cat) {
-    ajusteCategoriaSeleccionada = cat;
-    document.getElementById('ajusteCategoria').value = cat;
-    document.querySelectorAll('#ajusteCatGrid .cat-btn').forEach(b => b.classList.remove('activo'));
-    const btn = document.getElementById('ajCatBtn_' + cat.replace(/\s/g,'_'));
-    if (btn) btn.classList.add('activo');
-    // Actualizar toggle promo cuando cambia la categoría
-    if (ajusteProducto) _actualizarTogglePromoAjuste({ ...ajusteProducto, category: cat });
-}
-
-function _actualizarTogglePromoAjuste(p) {
-    const wrap = document.getElementById('ajustePromoWrap');
-    const btn  = document.getElementById('ajustePromoBtn');
-    const info = document.getElementById('ajustePromoInfo');
-    if (!wrap || !btn || !info) return;
-
-    const tienePromoConfig = p.precioPromo > 0 && p.precioPromo < p.price;
-    const catActual = ajusteCategoriaSeleccionada || p.category;
-    const estaEnPromos = catActual === 'PROMOS';
-
-    // Siempre mostrar el wrap
-    wrap.style.display = 'block';
-
-    if (!tienePromoConfig) {
-        // No tiene precio promo configurado en col K
-        btn.style.background   = '#fafafa';
-        btn.style.borderColor  = '#e0e0e0';
-        btn.style.color        = '#ccc';
-        btn.textContent        = '🏷️ Sin precio promo configurado';
-        btn.disabled           = true;
-        info.style.color       = '#e65100';
-        info.textContent       = '⚠️ Configurá el precio promo en col K del inventario';
-        return;
-    }
-
-    const pct = p.pctPromo || Math.round((p.price - p.precioPromo) / p.price * 100);
-    btn.disabled = false;
-
-    if (estaEnPromos) {
-        // Ya está en PROMOS → promo activa
-        btn.style.background  = 'linear-gradient(135deg,#b71c1c,#e53935)';
-        btn.style.borderColor = '#c62828';
-        btn.style.color       = '#fff';
-        btn.textContent       = `🏷️ PROMO ACTIVA — $${p.precioPromo.toLocaleString('es-AR')} (-${pct}%) · Tocar para DESACTIVAR`;
-        info.style.color      = '#52e88a';
-        info.textContent      = `Antes: $${p.price.toLocaleString('es-AR')} → Ahora: $${p.precioPromo.toLocaleString('es-AR')}`;
-    } else {
-        // No está en PROMOS → promo inactiva
-        btn.style.background  = '#f9f9f9';
-        btn.style.borderColor = '#c62828';
-        btn.style.color       = '#c62828';
-        btn.textContent       = `🏷️ Activar PROMO — $${p.precioPromo.toLocaleString('es-AR')} (-${pct}%)`;
-        info.style.color      = '#aaa';
-        info.textContent      = `Precio normal: $${p.price.toLocaleString('es-AR')} · Promo: $${p.precioPromo.toLocaleString('es-AR')}`;
-    }
-}
-
-function toggleAjustePromo() {
-    if (!ajusteProducto) return;
-    const tienePromoConfig = ajusteProducto.precioPromo > 0 && ajusteProducto.precioPromo < ajusteProducto.price;
-    if (!tienePromoConfig) {
-        mostrarToast('⚠️ Configurá el precio promo en col K del inventario primero', 'rojo');
-        return;
-    }
-    const catActual = ajusteCategoriaSeleccionada || ajusteProducto.category;
-    const estaEnPromos = catActual === 'PROMOS';
-    // Determinar categoría anterior (para volver)
-    const catAnterior = ajusteProducto._catAnterior || (estaEnPromos ? 'OTROS' : ajusteProducto.category);
-    if (!ajusteProducto._catAnterior && !estaEnPromos) {
-        ajusteProducto._catAnterior = ajusteProducto.category;
-    }
-    const nuevaCat = estaEnPromos ? (ajusteProducto._catAnterior || 'OTROS') : 'PROMOS';
-    selAjusteCategoria(nuevaCat);
-    const pct = ajusteProducto.pctPromo || Math.round((ajusteProducto.price - ajusteProducto.precioPromo) / ajusteProducto.price * 100);
-    mostrarToast(
-        nuevaCat === 'PROMOS'
-            ? `🏷️ PROMO activada — $${ajusteProducto.precioPromo.toLocaleString('es-AR')} (-${pct}%)`
-            : `✅ PROMO desactivada — precio normal $${ajusteProducto.price.toLocaleString('es-AR')}`,
-        nuevaCat === 'PROMOS' ? 'verde' : 'naranja'
-    );
-}
     ajusteCategoriaSeleccionada = cat;
     document.getElementById('ajusteCategoria').value = cat;
     document.querySelectorAll('#ajusteCatGrid .cat-btn').forEach(b => b.classList.remove('activo'));
@@ -6510,10 +6410,6 @@ function badgeOfertaPOS(producto) {
         return `<span style="background:#e65100;color:#fff;font-size:.55rem;font-weight:900;padding:1px 5px;border-radius:6px;margin-left:4px">⚠️ REPONER</span>`;
     }
 
-    // ── PROMOS: precio especial con % calculado ──
-    if (producto.category === 'PROMOS' && producto.precioPromo > 0 && producto.pctPromo > 0) {
-        return `<span style="background:linear-gradient(135deg,#c62828,#e53935);color:#fff;font-size:.6rem;font-weight:900;padding:1px 6px;border-radius:10px;margin-left:4px">🏷️ -${producto.pctPromo}% PROMO</span>`;
-    }
     if (_esCerveceroActivo() && _poolCervecero.has(producto.id)) {
         const jc = _poolCervecero.get(producto.id);
         return `<span style="background:#1565c0;color:#f9a825;font-size:.6rem;font-weight:900;padding:1px 6px;border-radius:10px;margin-left:4px">🎉 PRECIO ESPECIAL</span>`;
