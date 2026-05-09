@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v170</title>
+    <title>Patagonia Salvaje — POS v171</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1008,8 +1008,6 @@
             <button id="btnToggleHeader" onclick="toggleHeader()" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 12px;color:white;font-size:1rem;font-weight:700;cursor:pointer;">⚙️</button>
         </div>
         <div style="display:flex;gap:4px;align-items:center;">
-            <button onclick="limpiarVenta()" title="Limpiar venta"
-                    style="background:rgba(183,28,28,0.35);border:1.5px solid rgba(183,28,28,0.7);border-radius:12px;padding:6px 10px;color:#ffcdd2;font-size:1rem;cursor:pointer;line-height:1;">🗑</button>
             <button class="btn-resumen" onclick="cambiarVendedor()" id="vendedorBadge"
                     style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.4);">👤 Víctor</button>
         </div>
@@ -1017,25 +1015,22 @@
 
     <!-- FILAS COLAPSABLES -->
     <div id="headerFilas" style="width:100%;display:flex;flex-direction:column;gap:6px;overflow:hidden;transition:max-height 0.3s ease,opacity 0.3s ease;max-height:0px;opacity:0;pointer-events:none;">
-        <!-- FILA 1: Mercadería del local -->
+        <!-- FILA 1: Operaciones principales -->
         <div class="header-right" style="width:100%;justify-content:space-between;gap:4px;">
             <button class="btn-resumen" onclick="abrirIngreso()" title="Ingreso mercadería"
-                    style="background:rgba(46,139,87,0.25);border-color:rgba(46,139,87,0.55);flex:1;text-align:center;display:flex;align-items:center;justify-content:center;">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="10" y1="3" x2="10" y2="17" stroke="#2E8B57" stroke-width="2.5" stroke-linecap="round"/><line x1="3" y1="10" x2="17" y2="10" stroke="#2E8B57" stroke-width="2.5" stroke-linecap="round"/></svg>
+                    style="background:rgba(46,139,87,0.25);border-color:rgba(46,139,87,0.55);flex:1.5;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px;">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><line x1="10" y1="3" x2="10" y2="17" stroke="#2E8B57" stroke-width="2.5" stroke-linecap="round"/><line x1="3" y1="10" x2="17" y2="10" stroke="#2E8B57" stroke-width="2.5" stroke-linecap="round"/></svg>
+                <span style="font-size:0.7rem;font-weight:700;">INGRESO</span>
             </button>
-            <button class="btn-resumen" onclick="abrirNuevoProducto()" title="Nuevo producto"
-                    style="background:rgba(107,142,35,0.25);border-color:rgba(107,142,35,0.55);flex:1;text-align:center;display:flex;align-items:center;justify-content:center;">
-                <svg width="22" height="20" viewBox="0 0 22 20" fill="none"><rect x="2" y="11" width="12" height="8" rx="1" stroke="#8FBC2A" stroke-width="1.6" fill="rgba(143,188,42,0.15)"/><line x1="2" y1="14" x2="14" y2="14" stroke="#8FBC2A" stroke-width="1.2"/><g transform="rotate(-18, 15, 7)"><rect x="9" y="2" width="11" height="7.5" rx="1" stroke="#C8E26A" stroke-width="1.5" fill="rgba(200,226,106,0.18)"/><line x1="9" y1="5" x2="20" y2="5" stroke="#C8E26A" stroke-width="1.1"/></g></svg>
-            </button>
-            <button class="btn-resumen" onclick="abrirResumen()" title="Resumen del día" style="flex:1;text-align:center;">📊 Hoy</button>
+            <button class="btn-resumen" onclick="abrirResumen()" title="Resumen del día" style="flex:1.5;text-align:center;">📊 Hoy</button>
             <a href="patagonia-reportes.html?v=123" class="btn-resumen" title="Reportes" style="background:rgba(156,39,176,0.3);border-color:rgba(156,39,176,0.6);flex:1;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">📈</a>
             <button class="btn-resumen" onclick="abrirFotos()" title="Editor de fotos" style="background:rgba(0,150,136,0.3);border-color:rgba(0,150,136,0.6);flex:1;text-align:center;">📷</button>
+            <button onclick="abrirModalHorario()" class="btn-resumen" title="Horario del local" style="background:rgba(0,188,212,0.3);border-color:rgba(0,188,212,0.6);flex:1;">🕐</button>
+            <button class="btn-resumen" onclick="abrirConfigProveedores()" title="Proveedores / Config" style="background:rgba(255,193,7,0.3);border-color:rgba(255,193,7,0.6);flex:1;text-align:center;">⚙️</button>
         </div>
 
         <!-- FILA 2: Sistema -->
         <div class="header-right" style="width:100%;justify-content:space-between;gap:4px;">
-            <button onclick="abrirModalHorario()" class="btn-resumen" title="Horario del local" style="background:rgba(0,188,212,0.3);border-color:rgba(0,188,212,0.6);flex:1;">🕐</button>
-            <button class="btn-resumen" onclick="abrirConfigProveedores()" title="Configuración" style="background:rgba(255,193,7,0.3);border-color:rgba(255,193,7,0.6);flex:1;text-align:center;">⚙️</button>
             <button class="btn-resumen" id="btnActualizar" onclick="forzarActualizacion()" title="Actualizar" style="background:rgba(105,240,174,0.2);border-color:rgba(105,240,174,0.5);flex:1;text-align:center;">🔄</button>
             <button class="btn-resumen" id="btnNotifPos" onclick="abrirNotifPos()" title="Notificaciones"
                     style="background:rgba(255,193,7,0.15);border-color:rgba(255,193,7,0.5);flex:1;text-align:center;position:relative;display:flex;align-items:center;justify-content:center;">
@@ -3861,24 +3856,40 @@ function _tieneOfertaActiva(p) {
 }
 
 function _sortProductos(lista, idsEnCarrito) {
-    // Pre-calcular peso de categoría UNA vez por producto (no dentro del comparador)
+    // Prioridad de oferta: PROMOS=6, Especial=5, Destacada=4, Relámpago=3, Bebidas promo=2, otras=1, ninguna=0
+    function _ofertaPrioridad(p) {
+        if (p.stock <= 0) return -1;
+        const cat = String(p.category || '').toUpperCase();
+        // PROMOS con precio promo activo
+        if (cat === 'PROMOS' && p.precioPromo > 0 && p.precioPromo < p.price) return 6;
+        // Especial activo
+        if (_tipoActivo('especiales') && _poolIdsEspeciales && _poolIdsEspeciales.has(p.id)) return 5;
+        // Destacada activa
+        if (_tipoActivo('destacadas') && _destacadasFiltradas && _destacadasFiltradas.has(p.id)) return 4;
+        // Relámpago activo
+        if (_tipoActivo('relampago') && _poolIdsRelampago && _poolIdsRelampago.has(p.id)) return 3;
+        // Bebidas con promo activa
+        if (_esBebidaPromoActiva && _esBebidaPromoActiva() && _poolBebidas && _poolBebidas.has(p.id)) return 2;
+        // Últimas unidades
+        if (_tipoActivo('ultimas') && _poolIdsUltimas && _poolIdsUltimas.has(p.id)) return 1;
+        return 0;
+    }
     function _catPeso(p) {
-        const cat = String(p.category || p.categoria || '').toUpperCase();
-        if (cat.includes('PANADERIA') || cat.includes('PANIFICADO')) return 3000;
+        const cat = String(p.category || '').toUpperCase();
         if (cat.includes('COMPUTA') || cat.includes('ELECTRON') || cat.includes('TECNOL')) return -9999;
         return 0;
     }
     const scored = lista.map(p => ({
         p,
-        oferta:  _tieneOfertaActiva(p) ? 1 : 0,
-        carrito: (idsEnCarrito && idsEnCarrito.has(p.id)) ? 1 : 0,
-        rank:    rankScore(p.id) + _catPeso(p)
+        ofertaPrio: _ofertaPrioridad(p),
+        carrito:    (idsEnCarrito && idsEnCarrito.has(p.id)) ? 1 : 0,
+        rank:       rankScore(p.id) + _catPeso(p)
     }));
     scored.sort((a, b) => {
         if (a.p.stock === 0 && b.p.stock > 0) return 1;
         if (a.p.stock > 0 && b.p.stock === 0) return -1;
-        if (b.oferta  !== a.oferta)  return b.oferta  - a.oferta;
-        if (b.carrito !== a.carrito) return b.carrito - a.carrito;
+        if (b.ofertaPrio !== a.ofertaPrio) return b.ofertaPrio - a.ofertaPrio;
+        if (b.carrito    !== a.carrito)    return b.carrito    - a.carrito;
         return b.rank - a.rank;
     });
     return scored.map(s => s.p);
@@ -6936,7 +6947,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '170';
+    const VERSION = '171';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
