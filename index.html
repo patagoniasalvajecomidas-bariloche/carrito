@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v169</title>
+    <title>Patagonia Salvaje — POS v170</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6498,11 +6498,7 @@ function calcularOfertaPOS(producto, qty) {
 // Badge de oferta para el buscador
 function badgeOfertaPOS(producto) {
     // Si tiene oferta configurada pero no hay stock suficiente → advertencia
-    const tieneOfertaConfig = (producto.relampago > 0) || (producto.destacada > 0) || (producto.especial > 0);
-    const necesitaReponer = tieneOfertaConfig && producto.catOferta && producto.catOferta.indexOf('REPONER') !== -1;
-    if (necesitaReponer) {
-        return `<span style="background:#e65100;color:#fff;font-size:.55rem;font-weight:900;padding:1px 5px;border-radius:6px;margin-left:4px">⚠️ REPONER</span>`;
-    }
+    // Badge REPONER eliminado del catálogo — va solo a notificaciones del vendedor
 
     // ── PROMOS: col J dice "promo activa" O categoría PROMOS + precioPromo < price ──
     const esPromoActiva = (producto.catOferta === 'PROMO ACTIVA')
@@ -6940,7 +6936,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '169';
+    const VERSION = '170';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
