@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v171</title>
+    <title>Patagonia Salvaje — POS v173</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6276,6 +6276,20 @@ async function cargarPoolsOfertas() {
         const poolsVacios = _poolIdsRelampago.size === 0 && _poolIdsDestacadas.size === 0 && _poolIdsEspeciales.size === 0;
         if (poolsVacios) _construirPoolsLocalFallback();
         console.log(`✅ Pools POS: ${_poolIdsRelampago.size} rel · ${_destacadasFiltradas.size} dest · ${_poolIdsEspeciales.size} esp · ${_poolIdsUltimas.size} ult`);
+
+        // ── Notificaciones de stock insuficiente para ofertas ──
+        if (data.notifReponerStock && data.notifReponerStock.length > 0) {
+            data.notifReponerStock.forEach(item => {
+                agregarNotifPos(
+                    '📦',
+                    `Reponer para activar promo ${item.tipo}`,
+                    `${item.nombre} — stock: ${item.stock} u. · necesita: ${item.necesario} u.`,
+                    '#e65100'
+                );
+            });
+            console.log(`⚠️ ${data.notifReponerStock.length} producto(s) con stock insuficiente para oferta`);
+        }
+
         reporteOfertasPOS('post-pools');
     } catch(e) {
         console.warn('⚠️ No se pudieron cargar pools de ofertas:', e.message);
@@ -6297,7 +6311,7 @@ async function cargarPoolsOfertas() {
                 const local = productos.find(lp => lp.name.trim().toUpperCase() === p.nombre.trim().toUpperCase());
                 if (local) _poolCervecero.set(local.id, {
                     descuento: p.descuento || 0,
-                    precioPromo: p.precioPromo || local.price,
+                    precioPromo: parseInt(p.precioPromo) || 0,
                     esGancho: p.esGancho || false
                 });
             });
@@ -6315,7 +6329,7 @@ async function cargarPoolsOfertas() {
                 const local = productos.find(lp => lp.name.trim().toUpperCase() === p.nombre.trim().toUpperCase());
                 if (local) _poolBebidas.set(local.id, {
                     descuento  : p.descuento  || 0,
-                    precioPromo: p.precioPromo || local.price,
+                    precioPromo: parseInt(p.precioPromo) || 0,
                     esGancho   : p.esGancho   || false
                 });
             });
@@ -6431,6 +6445,22 @@ function calcularOfertaPOS(producto, qty) {
         r.tieneOferta    = true;
         r.tipoOferta     = 'cervecero';
         return r;
+    }
+
+    // 0b. PROMOS directas — categoría PROMOS + K < B + sin error en col J
+    {
+        const catOfertaOk = !producto.catOferta || !String(producto.catOferta).startsWith('ERROR');
+        if (catOfertaOk && producto.category === 'PROMOS' && producto.precioPromo > 0 && producto.precioPromo < producto.price) {
+            const pct = producto.pctPromo || Math.round((producto.price - producto.precioPromo) / producto.price * 100);
+            r.precioUnitario = producto.precioPromo;
+            r.precioTotal    = producto.precioPromo * qty;
+            r.etiqueta       = `🏷️ -${pct}% PROMO`;
+            r.tieneOferta    = true;
+            r.tipoOferta     = 'promo';
+            r.precioOriginal = producto.price;
+            r.descuento      = pct;
+            return r;
+        }
     }
 
     // 1. RELÁMPAGO — toggle activo Y producto en el pool del día
@@ -6947,7 +6977,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '171';
+    const VERSION = '173';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
