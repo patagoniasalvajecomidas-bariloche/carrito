@@ -101,12 +101,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v175</title>
+    <title>Patagonia Salvaje — POS v176</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Patagonia POS">
+    <meta name="apple-mobile-web-app-title" content="SmartPOS">
     <!-- POS adaptado para carrito de comida: Patagonia Salvaje -->
     <link rel="manifest" href="manifest-venta.json">
     <link rel="icon" href="iconos-pwa/android/android-launchericon-48-48.png">
@@ -1001,7 +1001,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
         <div style="display:flex;align-items:center;gap:8px;">
             <div class="header-titulo">
-                🛒 Patagonia<span id="versionTag" style="font-size:0.75rem;font-weight:700;opacity:0.85;margin-left:8px;background:rgba(255,255,255,0.2);padding:2px 7px;border-radius:10px;color:white;letter-spacing:0.3px;"></span>
+                🛒 <span id="nombreLocalHeader">Mi Local</span><span id="versionTag" style="font-size:0.75rem;font-weight:700;opacity:0.85;margin-left:8px;background:rgba(255,255,255,0.2);padding:2px 7px;border-radius:10px;color:white;letter-spacing:0.3px;"></span>
                 <div class="indicador-carga" id="indicadorCarga" title="Cargando..."></div>
             </div>
             <!-- Botón expandir/colapsar header — solo visible cuando hay carrito -->
@@ -1714,7 +1714,8 @@
                 <!-- Alias grande -->
                 <div style="margin-top:10px;background:#e8f5e9;border-radius:10px;padding:10px;">
                     <div style="font-size:0.72rem;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Alias de transferencia</div>
-                    <div class="alias-transferencia-txt" style="font-size:1.4rem;font-weight:900;color:#1b5e20;letter-spacing:1px;">${_cfg('ALIAS_TRANSFERENCIA','pago.patagonia')}</div>
+                    <div class="alias-transferencia-txt" style="font-size:1.4rem;font-weight:900;color:#1b5e20;letter-spacing:1px;">mi-alias</div>
+                    <div style="font-size:0.68rem;color:#aaa;margin-top:3px;text-align:center;">⚙️ Configurar en planilla → CONFIG_UI</div>
                 </div>
                 <div style="background:#fff3e0;border-radius:10px;padding:8px 12px;
                             font-size:0.78rem;color:#e65100;font-weight:700;margin-top:8px;
@@ -1839,12 +1840,25 @@ function _aplicarConfigUI() {
     if (vends.length) VENDEDORES_DEFAULT = vends;
 
     // ── Nombre del local en header ──
-    const nombre = _cfg('NOMBRE_LOCAL','');
+    const nombre = _cfg('NOMBRE_LOCAL', 'Mi Local');
     if (nombre) {
         document.querySelectorAll('.nombre-local-txt').forEach(el => el.textContent = nombre);
-        const hdr = document.querySelector('.header-title, .app-nombre, #appNombre');
-        if (hdr && !hdr.classList.contains('no-cfg')) hdr.textContent = nombre;
+        // Actualizar el span del header principal
+        const hdrSpan = document.getElementById('nombreLocalHeader');
+        if (hdrSpan) hdrSpan.textContent = nombre;
+        // PWA title
+        document.title = nombre + ' — POS';
     }
+
+    // ── Alias de transferencia ──
+    const alias = _cfg('ALIAS_TRANSFERENCIA', 'mi-alias');
+    document.querySelectorAll('.alias-transferencia-txt').forEach(el => {
+        el.textContent = alias;
+    });
+
+    // ── WiFi desde config ──
+    if (_cfg('WIFI_SSID','')) WIFI_SSID = _cfg('WIFI_SSID','');
+    if (_cfg('WIFI_PASSWORD','')) WIFI_PASSWORD = _cfg('WIFI_PASSWORD','');
 
     // ── Alias de transferencia ──
     const alias = _cfg('ALIAS_TRANSFERENCIA','');
@@ -4528,7 +4542,7 @@ function generarQRTransferencia(monto) {
     qrDiv.innerHTML = '';
 
     // Texto estándar CBU/alias para transferencias argentinas
-    const alias = _cfg('ALIAS_TRANSFERENCIA', 'pago.patagonia');
+    const alias = _cfg('ALIAS_TRANSFERENCIA','mi-alias');
     // QR con solo el alias — compatible con todas las billeteras argentinas
     // El cliente escanea, se abre su app con el alias precargado, ingresa el monto
     const texto = alias;
@@ -5205,7 +5219,7 @@ const VENDEDOR_KEY = 'patagonia_vendedor';
 const VENDEDORES_KEY = 'patagonia_vendedores';
 let vendedorActual = '';
 
-let VENDEDORES_DEFAULT = ['Titular', 'Empleado'];
+let VENDEDORES_DEFAULT = ['Vendedor 1', 'Vendedor 2'];
 
 function getVendedores() {
     try {
@@ -7017,7 +7031,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '175';
+    const VERSION = '176';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7290,8 +7304,8 @@ cargarProductos().then(() => {
 <script>
 // ── WiFi QR ──
 // MOBILE ya declarado en el script principal
-let WIFI_SSID = 'PATAGONIA-SALVAJE';
-let WIFI_PASSWORD = 'patagonia2024';
+let WIFI_SSID = _cfg('WIFI_SSID','MI-LOCAL-WIFI');
+let WIFI_PASSWORD = _cfg('WIFI_PASSWORD','1234');
 let _wifiQRGenerado = false;
 
 function abrirWifiQR() {
@@ -7481,7 +7495,7 @@ function _generarCanvasFlyer(prods, horaCierre) {
 
     // Subtítulo
     ctx.font='italic 16px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.75)';
-    ctx.fillText(_cfg('FLYER_SUBTITULO','Frente al Llao Llao · Bariloche'),W/2,112);
+    ctx.fillText(_cfg('FLYER_SUBTITULO',''),W/2,112);
 
     // Hora y emoji montaña
     ctx.font='15px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.65)';
@@ -7598,13 +7612,13 @@ function _generarCanvasFlyer(prods, horaCierre) {
     ctx.shadowBlur=0;
 
     ctx.font='13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
-    ctx.fillText(_cfg('FLYER_TAGLINE','Frente al Hotel Llao Llao · Bariloche · Río Negro'),W/2,fy+58);
+    ctx.fillText(_cfg('FLYER_TAGLINE',''),W/2,fy+58);
 
     ctx.font='12px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.35)';
     ctx.fillText('Stock limitado · Precios de hoy · Hasta agotar',W/2,fy+76);
 
     ctx.font='bold 11px sans-serif'; ctx.fillStyle='rgba(212,175,55,0.7)';
-    ctx.fillText('🛒 ' + _cfg('FLYER_FOOTER_URL','patagonia-salvaje.vercel.app'),W/2,fy+96);
+    ctx.fillText('🛒 ' + _cfg('FLYER_FOOTER_URL','mi-local.vercel.app'),W/2,fy+96);
 
     // Línea dorada inferior
     ctx.strokeStyle=lineGold; ctx.lineWidth=2;
@@ -7635,7 +7649,7 @@ async function compartirFlyerAdminWA() {
                 .catch(()=>{});
         } else {
             descargarFlyerAdmin();
-            setTimeout(() => window.open('https://wa.me/?text='+encodeURIComponent((_cfg('FLYER_WA_MSG','🔥 ¡PROMOS ESPECIALES en Patagonia Salvaje!\n🏔️ Frente al Llao Llao · Bariloche') + '\n🛒 ' + _cfg('URL_SITIO','https://patagonia-salvaje.vercel.app'))),'_blank'), 800);
+            setTimeout(() => window.open('https://wa.me/?text='+encodeURIComponent((_cfg('FLYER_WA_MSG','🔥 ¡PROMOS ESPECIALES!') + '\n🛒 ' + _cfg('URL_SITIO','https://patagonia-salvaje.vercel.app'))),'_blank'), 800);
         }
     },'image/png');
 }
@@ -10666,7 +10680,7 @@ function _enviarComprobanteVentaFiado(datosFiado, items, total, ticketNum) {
     }).join('\n');
 
     const msg = [
-        _cfg('TICKET_HEADER','🛒 *PATAGONIA SALVAJE*'),
+        _cfg('TICKET_HEADER','🛒 *' + (typeof _cfgUI !== 'undefined' ? (_cfgUI['NOMBRE_LOCAL']||'MI LOCAL') : 'MI LOCAL') + '*'),
         `📋 *Comprobante de Venta Fiada* ${ticket}`,
         `📅 ${fecha} · ${hora}hs`,
         '',
