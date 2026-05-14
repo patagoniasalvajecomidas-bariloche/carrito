@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v173</title>
+    <title>Patagonia Salvaje — POS v174</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2325,11 +2325,14 @@ async function cargarProductos() {
                 diaCritico: (p.diaCritico || '').toLowerCase().trim(),
                 precioCosto: parseInt(p.precioCosto) || 0,
                 stockMin: parseInt(p.stockMin) || 0,
+                stockMinPopup: parseInt(p.stockMin) || parseInt(p.stockMinPopup) || 0,
                 relampago: (p.relampago !== undefined && p.relampago !== null && p.relampago !== '') ? (isNaN(parseInt(p.relampago)) ? String(p.relampago).trim() : parseInt(p.relampago)) : 0,
                 destacada: parseInt(p.destacada) || 0,
                 especial: parseInt(p.especial) || 0,
                 normal: parseInt(p.normal) || 0,
-                catOferta: String(p.categoriaOferta || '').trim().toUpperCase()
+                catOferta: String(p.categoriaOferta || '').trim().toUpperCase(),
+                precioPromo: parseInt(p.precioPromo) || 0,
+                pctPromo: parseInt(p.pctPromo) || 0
             }));
         const indOk = document.getElementById('indicadorCarga');
         if (indOk) { indOk.classList.remove('cargando'); indOk.classList.add('ok'); indOk.title = `${productos.length} productos cargados`; }
@@ -6272,21 +6275,49 @@ async function cargarPoolsOfertas() {
         const ultPOS = (data.ultimasSeleccionadas && data.ultimasSeleccionadas.length > 0)
             ? data.ultimasSeleccionadas
             : (data.ultimasUnidades || []);
-        ultPOS.filter(p => p.categoria !== 'CERVEZAS').forEach(p => _poolIdsUltimas.set(Number(p.id), p.diasParaVencer !== undefined ? p.diasParaVencer : null));
+
+        // Sincronizar por NOMBRE contra productos locales (el ID del GS es el descripcion/ID, no el index)
+        ultPOS.filter(p => p.categoria !== 'CERVEZAS').forEach(p => {
+            // Buscar el producto local por nombre exacto
+            const local = (typeof productos !== 'undefined')
+                ? productos.find(lp => lp.name.trim().toUpperCase() === (p.nombre||'').trim().toUpperCase())
+                : null;
+            const idLocal = local ? local.id : Number(p.id);
+            if (idLocal) _poolIdsUltimas.set(idLocal, p.diasParaVencer !== undefined ? p.diasParaVencer : null);
+        });
+
+        // Fallback local: también agregar productos que localmente tienen stock < stockMinPopup
+        if (_poolIdsUltimas.size === 0 && typeof productos !== 'undefined') {
+            productos.forEach(p => {
+                if (p.stock > 0 && p.stockMinPopup > 0 && p.stock < p.stockMinPopup) {
+                    _poolIdsUltimas.set(p.id, null);
+                }
+            });
+            if (_poolIdsUltimas.size > 0)
+                console.log(`🏷️ Pool ultimas (fallback local): ${_poolIdsUltimas.size} productos`);
+        }
         const poolsVacios = _poolIdsRelampago.size === 0 && _poolIdsDestacadas.size === 0 && _poolIdsEspeciales.size === 0;
         if (poolsVacios) _construirPoolsLocalFallback();
         console.log(`✅ Pools POS: ${_poolIdsRelampago.size} rel · ${_destacadasFiltradas.size} dest · ${_poolIdsEspeciales.size} esp · ${_poolIdsUltimas.size} ult`);
 
         // ── Notificaciones de stock insuficiente para ofertas ──
         if (data.notifReponerStock && data.notifReponerStock.length > 0) {
-            data.notifReponerStock.forEach(item => {
-                agregarNotifPos(
+            const _notifKey2 = 'patagonia_notif_reponer_' + fechaArgentina();
+            const _notifVistas = new Set(JSON.parse(localStorage.getItem(_notifKey2) || '[]'));
+            const _nuevas = data.notifReponerStock.filter(item => {
+                const k = item.nombre.replace(/\s/g,'_').toUpperCase();
+                if (_notifVistas.has(k)) return false;
+                _notifVistas.add(k); return true;
+            });
+            if (_nuevas.length) {
+                localStorage.setItem(_notifKey2, JSON.stringify([..._notifVistas]));
+                _nuevas.forEach(item => agregarNotifPos(
                     '📦',
                     `Reponer para activar promo ${item.tipo}`,
                     `${item.nombre} — stock: ${item.stock} u. · necesita: ${item.necesario} u.`,
                     '#e65100'
-                );
-            });
+                ));
+            }
             console.log(`⚠️ ${data.notifReponerStock.length} producto(s) con stock insuficiente para oferta`);
         }
 
@@ -6977,7 +7008,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '173';
+    const VERSION = '174';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7798,9 +7829,10 @@ async function compartirFlyerAdminWA() {
 
     <!-- Footer sticky -->
     <div style="position:sticky;bottom:0;background:white;border-top:1.5px solid #eee;padding:10px 16px;display:flex;gap:8px;">
-      <button onclick="lcCopiarTexto()" style="flex:1;background:#1565c0;color:white;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:0.88rem;cursor:pointer;">📋 Copiar texto</button>
-      <button onclick="lcCompartirWA()" style="flex:1;background:#25d366;color:white;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:0.88rem;cursor:pointer;">📲 Compartir WA</button>
-      <button onclick="cerrarListaCompra()" style="background:#f0f0f0;color:#555;border:none;border-radius:12px;padding:12px 18px;font-weight:600;cursor:pointer;">Cerrar</button>
+      <button onclick="lcSeleccionarTodo()" style="background:#f0f0f0;color:#555;border:none;border-radius:12px;padding:12px 10px;font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap;">☑️ Todo</button>
+      <button onclick="lcCopiarTexto()" style="flex:1;background:#1565c0;color:white;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:0.82rem;cursor:pointer;">📋 Copiar</button>
+      <button onclick="lcCompartirWA()" id="lcBtnWA" style="flex:1.5;background:#25d366;color:white;border:none;border-radius:12px;padding:12px;font-weight:700;font-size:0.82rem;cursor:pointer;">📲 WA <span id="lcSelCount" style="font-size:0.75rem;opacity:0.85;"></span></button>
+      <button onclick="cerrarListaCompra()" style="background:#f0f0f0;color:#555;border:none;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer;">✕</button>
     </div>
   </div>
 </div>
@@ -7809,6 +7841,7 @@ async function compartirFlyerAdminWA() {
 // ── LISTA DE COMPRA ───────────────────────────────────────────
 var _lcItems = [];
 var _lcFiltroActivo = 'todos';
+var _lcSeleccionados = new Set(); // nombres seleccionados para WA
 
 async function abrirListaCompra() {
   document.getElementById('modalListaCompra').style.display = 'block';
@@ -7852,6 +7885,7 @@ async function abrirListaCompra() {
 
 function cerrarListaCompra() {
   document.getElementById('modalListaCompra').style.display = 'none';
+  _lcSeleccionados.clear();
 }
 
 function lcFiltrar(filtro) {
@@ -7918,11 +7952,10 @@ function lcRenderizar(filtro) {
         + '</button>'
       : '';
 
-    html += '<div class="' + cardClass + '" style="' + opacidad + '">'
-      + '<div style="flex:1;min-width:0;">'
-      +   '<div style="font-size:0.82rem;font-weight:700;color:#222;line-height:1.3;margin-bottom:3px;">' + it.nombre + '</div>'
-      +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-      +     badgeTxt
+    var isSelected = _lcSeleccionados.has(it.nombre);
+    var checkEmoji = isSelected ? '☑️' : '⬜';
+    var selectedBg = isSelected ? 'background:#f0fff4;' : '';
+    html += '<div class="' + cardClass + '" onclick="lcToggleSeleccion(\'' + it.nombre.replace(/'/g, "\\'") + '\')" style="cursor:pointer;' + opacidad + selectedBg + '">'      + '<div style="flex:1;min-width:0;">'      +   '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'      +     '<span style="font-size:1rem;flex-shrink:0;">' + checkEmoji + '</span>'      +     '<span style="font-size:0.82rem;font-weight:700;color:#222;line-height:1.3;">' + it.nombre + '</span>'      +   '</div>'      +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:26px;">'      +     badgeTxt
       +     '<span style="font-size:0.68rem;color:#888;">📦 stock: ' + it.stock + '</span>'
       +     '<span style="font-size:0.68rem;color:#888;">⏱ ' + diasTxt + '</span>'
       +     provTxt
@@ -7981,10 +8014,15 @@ async function lcTogglePausado(id, btn) {
 function lcCopiarTexto() {
   if (!_lcItems.length) return;
 
+  var items = _lcSeleccionados.size > 0
+    ? _lcItems.filter(function(it){ return _lcSeleccionados.has(it.nombre); })
+    : _lcItems;
+  items = items.filter(function(it){ return it.prioridad !== 'PAUSADO'; });
+
   var texto = '🛒 Lista de compra — ' + new Date().toLocaleDateString('es-AR') + '\n\n';
 
   var grupos = {};
-  _lcItems.forEach(function(it) {
+  items.forEach(function(it) {
     var g = it.urgencia <= 2 ? '⚠️ URGENTES' : '📋 NORMAL';
     if (!grupos[g]) grupos[g] = [];
     var costoTxt = it.costo > 0
@@ -7995,8 +8033,8 @@ function lcCopiarTexto() {
       + costoTxt);
   });
 
-  var totalCosto = _lcItems.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * it.cantidad : 0); }, 0);
-  var sinCosto   = _lcItems.filter(function(it){ return it.costo <= 0; }).length;
+  var totalCosto = items.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * it.cantidad : 0); }, 0);
+  var sinCosto   = items.filter(function(it){ return it.costo <= 0; }).length;
 
   Object.keys(grupos).forEach(function(g) {
     texto += g + '\n' + grupos[g].join('\n') + '\n\n';
@@ -8018,14 +8056,47 @@ function lcCopiarTexto() {
   });
 }
 
+function lcToggleSeleccion(nombre) {
+  if (_lcSeleccionados.has(nombre)) _lcSeleccionados.delete(nombre);
+  else _lcSeleccionados.add(nombre);
+  _lcActualizarContadorSeleccion();
+  // Actualizar solo el checkbox sin re-renderizar todo
+  lcRenderizar(_lcFiltroActivo);
+}
+
+function lcSeleccionarTodo() {
+  var items = _lcItems.filter(function(it){ return it.prioridad !== 'PAUSADO'; });
+  var todos = items.every(function(it){ return _lcSeleccionados.has(it.nombre); });
+  if (todos) { _lcSeleccionados.clear(); }
+  else { items.forEach(function(it){ _lcSeleccionados.add(it.nombre); }); }
+  _lcActualizarContadorSeleccion();
+  lcRenderizar(_lcFiltroActivo);
+}
+
+function _lcActualizarContadorSeleccion() {
+  var el = document.getElementById('lcSelCount');
+  if (el) {
+    var total = _lcItems.filter(function(it){ return it.prioridad !== 'PAUSADO'; }).length;
+    var sel   = _lcSeleccionados.size;
+    el.textContent = sel > 0 ? '(' + sel + '/' + total + ')' : '';
+  }
+}
+
 function lcCompartirWA() {
   if (!_lcItems.length) return;
+
+  // Usar seleccionados si hay; sino todos
+  var items = _lcSeleccionados.size > 0
+    ? _lcItems.filter(function(it){ return _lcSeleccionados.has(it.nombre); })
+    : _lcItems;
+  items = items.filter(function(it){ return it.prioridad !== 'PAUSADO'; });
+  if (!items.length) { mostrarToast('⚠️ Seleccioná al menos un producto', 'naranja'); return; }
 
   var texto = '🛒 *Lista de compra Patagonia Salvaje*\n';
   texto += new Date().toLocaleDateString('es-AR') + '\n\n';
 
-  var urgentes = _lcItems.filter(function(it){ return it.urgencia <= 2; });
-  var normales  = _lcItems.filter(function(it){ return it.urgencia > 2; });
+  var urgentes = items.filter(function(it){ return it.urgencia <= 2; });
+  var normales  = items.filter(function(it){ return it.urgencia > 2; });
 
   if (urgentes.length) {
     texto += '⚠️ *URGENTES*\n';
@@ -8045,8 +8116,8 @@ function lcCompartirWA() {
     texto += '\n';
   }
 
-  var totalCosto = _lcItems.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * it.cantidad : 0); }, 0);
-  var sinCosto   = _lcItems.filter(function(it){ return it.costo <= 0; }).length;
+  var totalCosto = items.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * it.cantidad : 0); }, 0);
+  var sinCosto   = items.filter(function(it){ return it.costo <= 0; }).length;
   texto += '💰 *Total estimado: $' + Math.round(totalCosto).toLocaleString('es-AR') + '*';
   if (sinCosto > 0) texto += ' _(' + sinCosto + ' sin precio costo)_';
 
@@ -8152,12 +8223,7 @@ abrirIngreso = function(productoPresel) {
     poblarDatalistProveedores();
 };
 
-// Idem para nuevo producto
-const _abrirNuevoProductoOrig = abrirNuevoProducto;
-abrirNuevoProducto = function() {
-    _abrirNuevoProductoOrig();
-    poblarDatalistProveedores();
-};
+// abrirNuevoProducto: eliminado (reemplazado por ingreso de mercadería)
 </script>
 
 <!-- ========== MODAL SALIDA INTERNA ========== -->
