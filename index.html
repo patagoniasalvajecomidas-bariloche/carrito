@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v174</title>
+    <title>Patagonia Salvaje — POS v175</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6582,8 +6582,17 @@ function badgeOfertaPOS(producto) {
         const label = pct > 0 ? `-${pct}% PROMO` : 'PROMO';
         return `<span style="background:linear-gradient(135deg,#c62828,#e53935);color:#fff;font-size:.6rem;font-weight:900;padding:1px 6px;border-radius:10px;margin-left:4px">🏷️ ${label}</span>`;
     }
+    // ── RELAMPAGO porcentual (RELAMPAGO 10%, 15%, 20%, 25%) ──
+    if (producto.catOferta && producto.catOferta.startsWith('RELAMPAGO ')) {
+        const pctRel = producto.catOferta.replace('RELAMPAGO ','');
+        return `<span style="background:#f9a825;color:#1a1a1a;font-size:.6rem;font-weight:900;padding:1px 6px;border-radius:10px;margin-left:4px">⚡ -${pctRel}</span>`;
+    }
+    // ── REPONER: solo en notificaciones, no en catálogo ──
+    if (producto.catOferta && producto.catOferta.startsWith('REPONER')) {
+        return ''; // silencioso — la notificación ya lo informó
+    }
     // ── ERROR de configuración: mostrar advertencia ──
-    if (producto.catOferta && producto.catOferta.startsWith('ERROR')) {
+    if (producto.catOferta && (producto.catOferta.startsWith('ERROR') || producto.catOferta === 'CODIGO RELAMPAGO NO VALIDO')) {
         return `<span style="background:#e65100;color:#fff;font-size:.55rem;font-weight:900;padding:1px 5px;border-radius:6px;margin-left:4px">⚠️ ${producto.catOferta}</span>`;
     }
     if (_esCerveceroActivo() && _poolCervecero.has(producto.id)) {
@@ -7008,7 +7017,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '174';
+    const VERSION = '175';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
