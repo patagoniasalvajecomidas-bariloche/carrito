@@ -753,7 +753,7 @@ function calcularOfertas() {
   var sheet = ss.getSheetByName(HOJA_INVENTARIO);
   var datos = sheet.getDataRange().getValues();
 
-  var limites = { relampago: 3, especiales: 2, destacadas: 9 };
+  var limites = { relampago: 3, especiales: 2, destacadas: 9, ultimasUnidades: 15 };
   var horariosOferta = {
     relampago:  { inicio: 0,  cierre: 24, activo: false },
     destacadas: { inicio: 0,  cierre: 24, activo: false },
@@ -866,20 +866,32 @@ function calcularOfertas() {
            nom.includes('BIRRA') || nom.includes(' IPA') || nom.includes(' STOUT') || nom.includes(' PORTER');
   }
 
-  // Helper: detecta si la columna J dice que hay que reponer stock para la promo
+  // Helper: verifica stock mínimo según tipo de promo (col G = tipo relámpago)
+  // G=1 → 2x1 (necesita ≥2), G=2 → 3x2 (≥3), G=3 → 4x3 (≥4), etc.
+  // No depende de col J — la fórmula nueva ya no dice REPONER
   function _stockSuficienteParaOferta_(fila) {
-    var catOferta = String(fila[9] || '').trim().toUpperCase();
-    // Si dice REPONER → stock insuficiente para la promo
-    if (catOferta.indexOf('REPONER') !== -1) return false;
-    // Verificar stock mínimo según tipo de promo
-    var stock = parseInt(fila[5]) || 0;
-    if (catOferta.indexOf('3X2') !== -1 || catOferta.indexOf('3 X 2') !== -1) return stock >= 3;
-    if (catOferta.indexOf('2X1') !== -1 || catOferta.indexOf('2 X 1') !== -1) return stock >= 2;
-    if (catOferta.indexOf('4X3') !== -1 || catOferta.indexOf('4 X 3') !== -1) return stock >= 4;
+    var stock     = parseInt(fila[5]) || 0;
+    var relampago = parseInt(fila[6]) || 0;
+    if (stock <= 0) return false;
+    // NxM: el primer número es cuántas hay que tener
+    if (relampago >= 1 && relampago <= 9) {
+      var necesario = relampago + 1; // G=1→2x1→necesita 2, G=2→3x2→necesita 3
+      return stock >= necesario;
+    }
+    // G=10 (2da50%): necesita stock >= 2
+    if (relampago === 10) return stock >= 2;
     return stock >= 1;
   }
 
+  // Helper: detecta si el stock es insuficiente para la promo (para notificaciones)
+  function _stockInsuficienteParaOferta_(fila) {
+    var relampago = parseInt(fila[6]) || 0;
+    if (relampago <= 0) return false;
+    return !_stockSuficienteParaOferta_(fila);
+  }
+
   var candidatosRelampago = [];
+  var notifReponerStock = []; // productos con oferta configurada pero stock insuficiente
   for (var i3 = 1; i3 < datos.length; i3++) {
     var fila3 = datos[i3];
     if (!fila3[0]) continue;
@@ -887,7 +899,17 @@ function calcularOfertas() {
     var stock3 = parseInt(fila3[5]) || 0;
     var relampago3 = parseInt(fila3[6]) || 0;
     if (stock3 <= 0 || relampago3 <= 0) continue;
-    if (!_stockSuficienteParaOferta_(fila3)) continue; // columna J: REPONER o stock insuficiente
+    if (!_stockSuficienteParaOferta_(fila3)) {
+      // Stock insuficiente → agregar a notificaciones pero NO al pool de ofertas
+      var necesario3 = relampago3 + 1;
+      notifReponerStock.push({
+        nombre: String(fila3[0]).trim(),
+        stock: stock3,
+        necesario: necesario3,
+        tipo: (relampago3 >= 1 && relampago3 <= 9) ? (relampago3+1)+'x'+relampago3 : relampago3
+      });
+      continue;
+    }
     var cat3 = String(fila3[2] || '').trim().toUpperCase();
     if (cat3 === 'CERVEZAS') continue;
     if (cerveceroActivoHoy && _esCerveza_(fila3)) continue;
@@ -1059,6 +1081,9 @@ function calcularOfertas() {
     success: true,
     relampagoActivo:      relampagoActivo,
     relampagoPool:        relampagoPoolCompleto,
+    notifReponerStock:    notifReponerStock,
+    ultimasUnidades:      _calcularUltimasUnidades(datos, limitesHoy),
+    ultimasSeleccionadas: _calcularUltimasUnidades(datos, limitesHoy),
     destacadasActivas:    destacadasRotadas,
     destacadasPool:       destacadasPool,
     especialesActivas:    especialesActivas,
@@ -1610,6 +1635,9 @@ function doGet(e) {
       var datosSal = e.parameter.data ? JSON.parse(decodeURIComponent(e.parameter.data)) : {};
       return respuestaJSON(getSalidasInternas(datosSal));
     }
+    if (e && e.parameter && e.parameter.action === 'getPoolBebidas') {
+      return respuestaJSON(getPoolBebidas());
+    }
     if (e && e.parameter && e.parameter.action === 'getPromoEspecial') {
       return respuestaJSON(getPromoEspecial());
     }
@@ -1678,6 +1706,18 @@ function doGet(e) {
         if (columnaK !== undefined && columnaK !== '' && columnaK !== null) {
           const num = parseInt(columnaK);
           if (!isNaN(num) && num > 0) producto.normal = num;
+        }
+      }
+      // ── Col K = precio promo — siempre se lee, solo se activa en categoría PROMOS ──
+      if (fila.length > 10) {
+        const kVal = parseInt(fila[10]) || 0;
+        if (kVal > 0 && kVal < producto.price) {
+          producto.precioPromo = kVal;
+          producto.pctPromo    = Math.round((producto.price - kVal) / producto.price * 100);
+          // Solo activo visualmente si está en categoría PROMOS
+          if (producto.category === 'PROMOS') {
+            producto.normal = producto.price; // precio original para tachado
+          }
         }
       }
 
@@ -3153,14 +3193,26 @@ function resetearPlanilla(pin) {
       }
     });
 
-    // 2. Inventario → poner STOCK = 0 en columna F (col 6), mantener todo lo demás
+    // 2. Inventario → poner STOCK = 0 en columna F, restaurar fórmula col J
     var shInv = ss.getSheetByName(HOJA_INVENTARIO);
     var lastRowInv = shInv.getLastRow();
     if (lastRowInv > 1) {
-      // Columna F = stock (índice 6)
+      // Stock → 0
       var stockRange = shInv.getRange(2, 6, lastRowInv - 1, 1);
       var zeros = Array(lastRowInv - 1).fill([0]);
       stockRange.setValues(zeros);
+
+      // Restaurar fórmula categoriaOferta (col J = columna 10)
+      // La fórmula usa referencias relativas — se aplica fila por fila
+      var formulaBase = '=IF(A2="","",IF(F2=0,"sin stock",IF(AND(C2="PROMOS",F2>0,K2<B2),"promo activa",IF(AND(C2="PROMOS",F2>0,K2>=B2),"ERROR PRECIO PROMO MAYOR",IF(AND(G2>=1,G2<=9,F2<G2+1),"REPONER "&((G2+1)-F2)&" PARA OFERTA",IF(AND(G2=10,F2<2),"REPONER "&(2-F2)&" PARA OFERTA",IF(NOT(OR(I2=0,I2=1)),"ERROR ESPECIAL",IF(NOT(ISNUMBER(MATCH(G2,{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},0))),"CODIGO RELAMPAGO NO VALIDO",IF(AND(H2>0,K2<=S2),"ERROR DESTACADA",IF((I2=1)+(H2>0)+(G2>0)>1,"ERROR DOBLE OFERTA",IF(I2=1,"especial",IF(H2>0,"destacada",IF(AND(G2>=1,G2<=9),(G2+1)&"x"&G2,IF(G2=10,"2da50",IF(G2=11,"RELAMPAGO 10%",IF(G2=12,"RELAMPAGO 15%",IF(G2=13,"RELAMPAGO 20%",IF(G2=14,"RELAMPAGO 25%","sin oferta")))))))))))))))))))';
+      // Aplicar en bloque usando R1C1 con fila relativa
+      var formulasJ = [];
+      for (var r = 2; r <= lastRowInv; r++) {
+        // Construir fórmula con número de fila correcto
+        var f = formulaBase.replace(/([A-Z])2/g, function(match, col){ return col + r; });
+        formulasJ.push([f]);
+      }
+      shInv.getRange(2, 10, lastRowInv - 1, 1).setFormulas(formulasJ);
     }
 
     // 3. config_sistema → limpiar solo filas de estado (ventas del día, caja, etc.)
@@ -3323,6 +3375,22 @@ function getPromoEspecial() {
       }
     }
 
+    // Detectar si la promo está activa hoy (lee config_sistema)
+    var promoActiva = false;
+    var diaSem = hoy.getDay(); // 0=DOM..6=SÁB
+    var colDiaPromo = diaSem === 0 ? 7 : diaSem;
+    if (shCfg) {
+      var cfgRows2 = shCfg.getDataRange().getValues();
+      for (var c2 = 1; c2 < cfgRows2.length; c2++) {
+        var lk2 = String(cfgRows2[c2][0] || '').toLowerCase().trim();
+        if (lk2 === 'promo especial activo') {
+          var vp = cfgRows2[c2][colDiaPromo];
+          promoActiva = (String(vp).trim() === '1' || vp === true);
+          break;
+        }
+      }
+    }
+
     var productos = [];
     for (var i = 1; i < invRows.length; i++) {
       var row  = invRows[i];
@@ -3330,7 +3398,8 @@ function getPromoEspecial() {
       var est  = String(row[19] || '').toUpperCase();
       var stock = parseFloat(row[5]) || 0;
 
-      if (cat !== 'PROMOS') continue;
+      // Incluir PROMOS y BEBIDAS
+      if (cat !== 'PROMOS' && cat !== 'BEBIDAS') continue;
       if (est === '❌' || est === 'INACTIVO') continue;
       if (stock <= 0) continue;
 
@@ -3338,23 +3407,31 @@ function getPromoEspecial() {
       var precioFinal = parseFloat(row[10]) || precio;
       var precioAntes = parseFloat(row[11]) || 0;
 
+      // Para BEBIDAS: solo incluir si tienen precio especial o son gancho
+      if (cat === 'BEBIDAS' && precioFinal >= precio) continue;
+
+      var ahorro = (precioAntes > 0 ? precioAntes : precio) - precioFinal;
+      var descuento = precio > 0 ? Math.round(ahorro / precio * 100) : 0;
+
       productos.push({
-        nombre      : String(row[0] || ''),
-        precio      : precioAntes > 0 ? precioAntes : precio,
-        precioPromo  : precioFinal,
-        stock       : stock,
-        categoria   : cat
+        nombre     : String(row[0] || ''),
+        precio     : precioAntes > 0 ? precioAntes : precio,
+        precioPromo: precioFinal,
+        descuento  : descuento,
+        stock      : stock,
+        categoria  : cat,
+        esGancho   : cat === 'BEBIDAS' // bebidas como gancho/combo
       });
     }
 
-    // Ordenar por mayor ahorro absoluto
+    // Ordenar: mayor margen de ganancia primero (más rentable para el carrito)
     productos.sort(function(a, b) {
-      var ahorroA = (a.precio - a.precioPromo);
-      var ahorroB = (b.precio - b.precioPromo);
-      return ahorroB - ahorroA;
+      var margenA = a.precioPromo - (a.precio * 0.55);
+      var margenB = b.precioPromo - (b.precio * 0.55);
+      return margenB - margenA;
     });
 
-    return { success: true, productos: productos, horaCierre: horaCierre };
+    return { success: true, productos: productos, horaCierre: horaCierre, promoActiva: promoActiva };
   } catch(e) {
     return { success: false, productos: [], error: e.toString() };
   }
@@ -3524,6 +3601,27 @@ function getConfigUI() {
     } else {
       config['VENDEDORES_EXCLUIR_ARR'] = [];
     }
+    // ── Defaults genéricos si no están configurados ──
+    var defaults = {
+        'NOMBRE_LOCAL':          'Mi Local',
+        'ALIAS_TRANSFERENCIA':   'mi-alias',
+        'WIFI_SSID':             'MI-LOCAL-WIFI',
+        'WIFI_PASSWORD':         '1234',
+        'VENDEDOR_1':            'Vendedor 1',
+        'VENDEDOR_2':            'Vendedor 2',
+        'TICKET_HEADER':         '🛒 *MI LOCAL*',
+        'TICKET_FOOTER':         '¡Gracias por tu compra! 🙏',
+        'FLYER_SUBTITULO':       '',
+        'FLYER_TAGLINE':         '',
+        'FLYER_FOOTER_URL':      'mi-local.vercel.app',
+        'FIADOS_PAGADOS_LIMITE': 3,
+        'PWA_NOMBRE':            'SmartPOS',
+    };
+    Object.keys(defaults).forEach(function(k) {
+        if (config[k] === undefined || config[k] === null || config[k] === '') {
+            config[k] = defaults[k];
+        }
+    });
     return { ok: true, config: config };
   } catch(e) {
     return { ok: false, error: e.toString(), config: {} };
@@ -3567,4 +3665,126 @@ function onEdit(e) {
     if (sh.getName() !== 'CONFIG_UI') return;
     colorearConfigUI();
   } catch(err) {}
+}
+
+// ══════════════════════════════════════════════════════════════
+// getPoolBebidas — algoritmo selección bebidas con promo
+// Mayor margen de ganancia + stock disponible (ex cervecero)
+// ══════════════════════════════════════════════════════════════
+function getPoolBebidas() {
+  try {
+    var ss    = SpreadsheetApp.openById(SS_ID);
+    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
+    if (!shInv) return { success: false, productos: [] };
+
+    var invRows = shInv.getDataRange().getValues();
+    var productos = [];
+
+    for (var i = 1; i < invRows.length; i++) {
+      var row   = invRows[i];
+      var nombre = String(row[0] || '').trim();
+      var precio = parseFloat(row[1]) || 0;
+      var cat    = String(row[2] || '').toUpperCase().trim();
+      var stock  = parseFloat(row[5]) || 0;
+      var est    = String(row[19] || '').toUpperCase();
+      var costo  = parseFloat(row[18]) || 0;
+
+      if (cat !== 'BEBIDAS') continue;
+      if (est === '❌' || est === 'INACTIVO') continue;
+      if (stock <= 0) continue;
+      if (precio <= 0) continue;
+
+      // Precio final: usar col K si tiene descuento, sino precio de lista
+      var precioFinal = parseFloat(row[10]) || precio;
+      var precioAntes = parseFloat(row[11]) || 0;
+      var precioBase  = precioAntes > 0 ? precioAntes : precio;
+
+      // Calcular margen real
+      var costoReal   = costo > 0 ? costo : precio * 0.55; // fallback 55%
+      var margen      = precioFinal - costoReal;
+      var pctMargen   = precioFinal > 0 ? margen / precioFinal : 0;
+
+      // Score: margen ponderado por stock (prioriza lo más rentable y disponible)
+      var score = pctMargen * Math.min(stock, 20); // cap stock en 20 para no sesgar
+
+      var descuento = precioBase > precioFinal
+        ? Math.round((precioBase - precioFinal) / precioBase * 100)
+        : 0;
+
+      productos.push({
+        nombre     : nombre,
+        precio     : precioBase,
+        precioPromo: precioFinal,
+        descuento  : descuento,
+        stock      : stock,
+        margen     : margen,
+        score      : score,
+        esGancho   : descuento >= 15 // gancho si tiene 15% o más de descuento
+      });
+    }
+
+    // Ordenar por score (mayor margen + stock)
+    productos.sort(function(a, b) { return b.score - a.score; });
+
+    // Tomar top 8 para el pool
+    productos = productos.slice(0, 8);
+
+    return { success: true, productos: productos };
+  } catch(e) {
+    return { success: false, productos: [], error: e.toString() };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ÚLTIMAS UNIDADES — productos con stock ≤ stockMin (col N)
+// Criterio: stock actual < stockMin calculado por rotación
+// ══════════════════════════════════════════════════════════════
+function _calcularUltimasUnidades(datos, limites) {
+  try {
+    var limite  = (limites && limites.ultimasUnidades) ? parseInt(limites.ultimasUnidades) : 15;
+    var ultimas = [];
+
+    for (var i = 1; i < datos.length; i++) {
+      var fila  = datos[i];
+      var nombre = String(fila[0] || '').trim();
+      if (!nombre) continue;
+
+      var stock   = parseFloat(fila[5]) || 0;
+      var stockMin = parseFloat(fila[13]) || 0; // col N
+      var est     = String(fila[19] || '').toUpperCase();
+      var cat     = String(fila[2]  || '').toUpperCase().trim();
+
+      if (est === '❌' || est === 'INACTIVO') continue;
+      if (stock <= 0) continue;       // sin stock → ya es "sin stock", no "ultimas"
+      if (stockMin <= 0) continue;    // sin mínimo definido → no aplica
+      if (stock >= stockMin) continue; // stock ok → no es últimas
+
+      var precio   = parseFloat(fila[1]) || 0;
+      var rotacion = parseFloat(fila[14]) || 3; // col O = ROTACION
+
+      ultimas.push({
+        id:          String(fila[3] || '').trim(), // col D = ID/descripcion
+        nombre:      nombre,
+        stock:       stock,
+        stockMin:    stockMin,
+        precio:      precio,
+        categoria:   cat,
+        rotacion:    rotacion,
+        faltante:    Math.max(0, stockMin - stock),
+        diasParaVencer: null
+      });
+    }
+
+    // Ordenar por urgencia: mayor déficit relativo primero
+    ultimas.sort(function(a, b) {
+      var urgA = a.stock / Math.max(1, a.stockMin);
+      var urgB = b.stock / Math.max(1, b.stockMin);
+      return urgA - urgB; // menor ratio = más urgente
+    });
+
+    return ultimas.slice(0, limite);
+  } catch(e) {
+    console.error('_calcularUltimasUnidades error:', e);
+    return [];
+  }
 }
