@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v176</title>
+    <title>Patagonia Salvaje — POS v178</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1860,11 +1860,6 @@ function _aplicarConfigUI() {
     if (_cfg('WIFI_SSID','')) WIFI_SSID = _cfg('WIFI_SSID','');
     if (_cfg('WIFI_PASSWORD','')) WIFI_PASSWORD = _cfg('WIFI_PASSWORD','');
 
-    // ── Alias de transferencia ──
-    const alias = _cfg('ALIAS_TRANSFERENCIA','');
-    if (alias) {
-        document.querySelectorAll('.alias-transferencia-txt').forEach(el => el.textContent = alias);
-    }
 
     // ── PWA title ──
     const pwaNombre = _cfg('PWA_NOMBRE','');
@@ -4541,11 +4536,11 @@ function generarQRTransferencia(monto) {
     // Limpiar QR anterior
     qrDiv.innerHTML = '';
 
-    // Texto estándar CBU/alias para transferencias argentinas
-    const alias = _cfg('ALIAS_TRANSFERENCIA','mi-alias');
-    // QR con solo el alias — compatible con todas las billeteras argentinas
-    // El cliente escanea, se abre su app con el alias precargado, ingresa el monto
-    const texto = alias;
+    // Texto estándar CBU/_aliasQR para transferencias argentinas
+    const _aliasQR = _cfg('ALIAS_TRANSFERENCIA','mi-_aliasQR');
+    // QR con solo el _aliasQR — compatible con todas las billeteras argentinas
+    // El cliente escanea, se abre su app con el _aliasQR precargado, ingresa el monto
+    const texto = _aliasQR;
 
     try {
         new QRCode(qrDiv, {
@@ -7031,7 +7026,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '176';
+    const VERSION = '178';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7304,8 +7299,8 @@ cargarProductos().then(() => {
 <script>
 // ── WiFi QR ──
 // MOBILE ya declarado en el script principal
-let WIFI_SSID = _cfg('WIFI_SSID','MI-LOCAL-WIFI');
-let WIFI_PASSWORD = _cfg('WIFI_PASSWORD','1234');
+let WIFI_SSID = 'MI-LOCAL-WIFI'; // se actualiza desde CONFIG_UI al cargar
+let WIFI_PASSWORD = '1234';      // se actualiza desde CONFIG_UI al cargar
 let _wifiQRGenerado = false;
 
 function abrirWifiQR() {
