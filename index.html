@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v178</title>
+    <title>Patagonia Salvaje — POS v179</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6489,7 +6489,11 @@ function calcularOfertaPOS(producto, qty) {
 
     // 0b. PROMOS directas — categoría PROMOS + K < B + sin error en col J
     {
-        const catOfertaOk = !producto.catOferta || !String(producto.catOferta).startsWith('ERROR');
+        const catOfertaOk = !producto.catOferta || (
+        !String(producto.catOferta).startsWith('ERROR') &&
+        producto.catOferta !== 'CODIGO RELAMPAGO NO VALIDO' &&
+        producto.catOferta !== 'ERROR PRECIO POR DEBAJO COSTO'
+    );
         if (catOfertaOk && producto.category === 'PROMOS' && producto.precioPromo > 0 && producto.precioPromo < producto.price) {
             const pct = producto.pctPromo || Math.round((producto.price - producto.precioPromo) / producto.price * 100);
             r.precioUnitario = producto.precioPromo;
@@ -6601,8 +6605,13 @@ function badgeOfertaPOS(producto) {
         return ''; // silencioso — la notificación ya lo informó
     }
     // ── ERROR de configuración: mostrar advertencia ──
-    if (producto.catOferta && (producto.catOferta.startsWith('ERROR') || producto.catOferta === 'CODIGO RELAMPAGO NO VALIDO')) {
-        return `<span style="background:#e65100;color:#fff;font-size:.55rem;font-weight:900;padding:1px 5px;border-radius:6px;margin-left:4px">⚠️ ${producto.catOferta}</span>`;
+    if (producto.catOferta && (
+        producto.catOferta.startsWith('ERROR') ||
+        producto.catOferta === 'CODIGO RELAMPAGO NO VALIDO' ||
+        producto.catOferta === 'ERROR PRECIO POR DEBAJO COSTO'
+    )) {
+        const colorErr = producto.catOferta === 'ERROR PRECIO POR DEBAJO COSTO' ? '#b71c1c' : '#e65100';
+        return `<span style="background:${colorErr};color:#fff;font-size:.55rem;font-weight:900;padding:1px 5px;border-radius:6px;margin-left:4px">⚠️ ${producto.catOferta}</span>`;
     }
     if (_esCerveceroActivo() && _poolCervecero.has(producto.id)) {
         const jc = _poolCervecero.get(producto.id);
@@ -7026,7 +7035,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '178';
+    const VERSION = '179';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
