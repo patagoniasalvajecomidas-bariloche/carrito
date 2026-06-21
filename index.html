@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v180</title>
+    <title>Patagonia Salvaje — POS v181</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7031,7 +7031,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '180';
+    const VERSION = '181';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7364,6 +7364,7 @@ document.getElementById('modalWifiQR').addEventListener('click', function(e) {
 <script>
 const GAS_URL_FLYER = API_URL;
 let _flyerCanvasAdmin = null;
+let _flyerNombreLocal = '';
 let _flyerProductos = [];
 let _flyerHoraCierre = 22;
 
@@ -7374,14 +7375,15 @@ async function abrirFlyerAdmin() {
                               { redirect: 'follow', signal: AbortSignal.timeout(API_TIMEOUT_MS) });
         const data = await r.json();
         if (!data.success || !data.productos || !data.productos.length) {
-            mostrarToast('⚠️ Sin productos en categoría PROMOS con stock', 'rojo'); return;
+            mostrarToast('⚠️ Sin productos marcados EN_FLYER con oferta activa. Poné 1 en col AL del inventario.', 'rojo'); return;
         }
         _flyerProductos  = data.productos;
         _flyerHoraCierre = data.horaCierre || 22;
+        _flyerNombreLocal = data.nombreLocal || _cfg('NOMBRE_LOCAL','Mi Local');
     } catch(e) {
         mostrarToast('❌ Error cargando datos', 'rojo'); return;
     }
-    const canvas = _generarCanvasFlyer(_flyerProductos, _flyerHoraCierre);
+    const canvas = _generarCanvasFlyer(_flyerProductos, _flyerHoraCierre, _flyerNombreLocal);
     _flyerCanvasAdmin = canvas;
     const wrap = document.getElementById('flyerWrapAdmin');
     wrap.innerHTML = '';
@@ -7394,7 +7396,8 @@ function _simplificarNombrePromo(nombre) {
     return palabras.slice(0, 5).join(' ');
 }
 
-function _generarCanvasFlyer(prods, horaCierre) {
+function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
+    nombreLocal = nombreLocal || _cfg('NOMBRE_LOCAL','Mi Local');
     // ── ordenar: mayor ahorro primero, destacado al tope ──
     let lista = prods.map(p => {
         const pf = (p.precioPromo > 0) ? p.precioPromo : Math.round((p.precio||0)*0.85);
@@ -7485,7 +7488,7 @@ function _generarCanvasFlyer(prods, horaCierre) {
     ctx.strokeStyle='rgba(212,175,55,0.5)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.roundRect(W/2-70,18,140,26,13); ctx.stroke();
     ctx.font='bold 11px sans-serif'; ctx.fillStyle='#d4af37';
-    ctx.textAlign='center'; ctx.fillText('🛒 PATAGONIA SALVAJE',W/2,35);
+    ctx.textAlign='center'; ctx.fillText('🛒 ' + nombreLocal.toUpperCase(), W/2, 35);
 
     // Nombre del carrito en dorado
     ctx.font='bold 44px sans-serif'; ctx.fillStyle='#d4af37';
