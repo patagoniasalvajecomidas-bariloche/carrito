@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v181</title>
+    <title>Patagonia Salvaje — POS v182</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7031,7 +7031,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '181';
+    const VERSION = '182';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7493,7 +7493,7 @@ function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
     // Nombre del carrito en dorado
     ctx.font='bold 44px sans-serif'; ctx.fillStyle='#d4af37';
     ctx.shadowColor='rgba(212,175,55,0.5)'; ctx.shadowBlur=20;
-    ctx.fillText('PROMOS',W/2,88);
+    ctx.fillText(_cfg('FLYER_TITULO','OFERTAS'),W/2,88);
     ctx.shadowBlur=0;
 
     // Subtítulo
@@ -7514,7 +7514,7 @@ function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
 
     // Tagline paisaje
     ctx.font='italic 13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.4)';
-    ctx.fillText('🌄 Lago Nahuel Huapi de fondo · sabor patagónico en cada mordida',W/2,175);
+    ctx.fillText(_cfg('FLYER_TAGLINE_TOP',''),W/2,175);
 
     // ══ FILAS DE PRODUCTOS ══
     let yOff = HEADER_H;
@@ -7611,7 +7611,7 @@ function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
     // Tagline principal
     ctx.font='bold 22px sans-serif'; ctx.fillStyle='#d4af37';
     ctx.textAlign='center'; ctx.shadowColor='rgba(212,175,55,0.4)'; ctx.shadowBlur=12;
-    ctx.fillText('🏔️ PATAGONIA SALVAJE 🏔️',W/2,fy+38);
+    ctx.fillText('🏔️ ' + nombreLocal.toUpperCase() + ' 🏔️',W/2,fy+38);
     ctx.shadowBlur=0;
 
     ctx.font='13px sans-serif'; ctx.fillStyle='rgba(255,255,255,0.6)';
