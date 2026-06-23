@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v182</title>
+    <title>Patagonia Salvaje — POS v183</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7031,7 +7031,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '182';
+    const VERSION = '183';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7589,7 +7589,7 @@ function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
             ctx.fillText('$' + p._pf.toLocaleString('es-AR'),PAD,yOff+76);
             if (p._ah > 0) {
                 ctx.font='11px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.7)';
-                ctx.fillText('Ahorrás $' + p._ah.toLocaleString('es-AR'), PAD+ctx.measureText('$' + p._pf.toLocaleString('es-AR')).width + 10, yOff+76);
+                ctx.fillText('Ahorrás $' + p._ah.toLocaleString('es-AR'), PAD, yOff+90);
             }
             // Emoji
             ctx.font='22px sans-serif'; ctx.textAlign='center';
