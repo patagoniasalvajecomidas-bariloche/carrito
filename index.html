@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v183</title>
+    <title>Patagonia Salvaje — POS v185</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1277,40 +1277,122 @@
 
             <div id="ajustePanel" style="display:none;margin-top:12px;">
 
-                <!-- Nombre del producto (solo lectura, referencia) -->
-                <div id="ajusteNombre" style="font-weight:800;font-size:1rem;color:#222;text-align:center;margin-bottom:2px;"></div>
-                <div id="ajusteStockActual" style="font-size:0.82rem;color:#888;text-align:center;margin-bottom:14px;"></div>
+                <!-- Header producto -->
+                <div id="ajusteNombre" style="font-weight:800;font-size:1.05rem;color:#222;text-align:center;margin-bottom:2px;"></div>
+                <div id="ajusteStockActual" style="font-size:0.82rem;color:#888;text-align:center;margin-bottom:8px;"></div>
+
+                <!-- VALIDACIÓN J — resultado en tiempo real -->
+                <div id="ajusteValidacionJ" style="
+                    text-align:center;font-size:0.82rem;font-weight:700;
+                    padding:6px 12px;border-radius:8px;margin-bottom:14px;
+                    background:#f5f5f5;color:#888;min-height:28px;
+                ">—</div>
 
                 <!-- STOCK -->
                 <div style="font-size:0.7rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;text-align:center;">📦 Stock</div>
-                <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:18px;">
-                    <button onclick="cambiarAjuste(-1)" style="width:58px;height:58px;border-radius:50%;border:none;background:#ffebee;color:#e53935;font-size:2rem;font-weight:700;cursor:pointer;touch-action:manipulation;">−</button>
-                    <div id="ajusteNuevo" style="font-size:2.6rem;font-weight:900;color:#1976d2;min-width:64px;text-align:center;"></div>
-                    <button onclick="cambiarAjuste(+1)" style="width:58px;height:58px;border-radius:50%;border:none;background:#e8f5e9;color:#2e7d32;font-size:2rem;font-weight:700;cursor:pointer;touch-action:manipulation;">+</button>
+                <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:16px;">
+                    <button onclick="cambiarAjuste(-1)" style="width:52px;height:52px;border-radius:50%;border:none;background:#ffebee;color:#e53935;font-size:2rem;font-weight:700;cursor:pointer;touch-action:manipulation;">−</button>
+                    <div id="ajusteNuevo" style="font-size:2.4rem;font-weight:900;color:#1976d2;min-width:60px;text-align:center;"></div>
+                    <button onclick="cambiarAjuste(+1)" style="width:52px;height:52px;border-radius:50%;border:none;background:#e8f5e9;color:#2e7d32;font-size:2rem;font-weight:700;cursor:pointer;touch-action:manipulation;">+</button>
                 </div>
 
-                <!-- PRECIO -->
+                <!-- PRECIO VENTA -->
                 <div style="font-size:0.7rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;text-align:center;">💰 Precio de venta</div>
-                <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px;">
-                    <button onclick="ajustarPrecio(-100)" style="width:44px;height:44px;border-radius:50%;border:2px solid #ffcdd2;background:#fff8f8;font-size:1.3rem;font-weight:900;cursor:pointer;color:#c62828;touch-action:manipulation;">−</button>
-                    <span style="font-size:1.4rem;font-weight:700;color:#555;">$</span>
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;">
+                    <button onclick="ajustarPrecio(-100)" style="width:40px;height:40px;border-radius:50%;border:2px solid #ffcdd2;background:#fff8f8;font-size:1.2rem;font-weight:900;cursor:pointer;color:#c62828;touch-action:manipulation;">−</button>
+                    <span style="font-size:1.2rem;font-weight:700;color:#555;">$</span>
                     <input type="number" id="ajustePrecioNuevo" min="0" step="100"
-                           style="font-size:2rem;font-weight:900;color:#2e7d32;width:150px;border:2px solid #c8e6c9;border-radius:10px;padding:6px 10px;text-align:center;"
-                           inputmode="numeric">
-                    <button onclick="ajustarPrecio(100)" style="width:44px;height:44px;border-radius:50%;border:2px solid #c8e6c9;background:#f1f8f1;font-size:1.3rem;font-weight:900;cursor:pointer;color:#2e7d32;touch-action:manipulation;">+</button>
+                           style="font-size:1.8rem;font-weight:900;color:#2e7d32;width:140px;border:2px solid #c8e6c9;border-radius:10px;padding:6px 10px;text-align:center;"
+                           inputmode="numeric" oninput="_ajusteActualizarValidacion()">
+                    <button onclick="ajustarPrecio(100)" style="width:40px;height:40px;border-radius:50%;border:2px solid #c8e6c9;background:#f1f8f1;font-size:1.2rem;font-weight:900;cursor:pointer;color:#2e7d32;touch-action:manipulation;">+</button>
                 </div>
 
-                <!-- PROMO TOGGLE -->
-                <div id="ajustePromoWrap" style="margin-bottom:14px;display:none;">
-                    <div style="font-size:0.7rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;text-align:center;">🏷️ Promoción</div>
-                    <button id="ajustePromoBtn" onclick="toggleAjustePromo()"
-                            style="width:100%;padding:12px;border-radius:12px;border:2px solid #e0e0e0;
-                                   background:#fafafa;color:#888;font-size:0.92rem;font-weight:700;cursor:pointer;
-                                   transition:all 0.2s;">
-                        🏷️ Activar PROMO
-                    </button>
-                    <div id="ajustePromoInfo" style="font-size:0.75rem;text-align:center;margin-top:5px;min-height:16px;color:#aaa;"></div>
+                <!-- SECCIÓN OFERTAS -->
+                <div style="background:#f8f9fa;border-radius:12px;padding:12px;margin-bottom:14px;">
+                    <div style="font-size:0.7rem;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;text-align:center;">⚡ Ofertas</div>
+
+                    <!-- Precio promo (col L) — para PROMOS y COMBOS -->
+                    <div style="margin-bottom:10px;">
+                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">🏷️ Precio promo / combo (col L)</div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="color:#888;">$</span>
+                            <input type="number" id="ajusteL" min="0" step="100" placeholder="vacío = sin promo"
+                                   style="flex:1;font-size:1.1rem;font-weight:700;border:2px solid #e0e0e0;border-radius:8px;padding:6px 10px;"
+                                   inputmode="numeric" oninput="_ajusteActualizarValidacion()">
+                            <button onclick="document.getElementById('ajusteL').value='';_ajusteActualizarValidacion()"
+                                    style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#888;font-size:0.8rem;cursor:pointer;">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- Relámpago (col G) -->
+                    <div style="margin-bottom:10px;">
+                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">⚡ Relámpago (col G) — 0=sin oferta, 1=2x1 ... 14=25%</div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <input type="number" id="ajusteG" min="0" max="14" step="1" placeholder="0"
+                                   style="flex:1;font-size:1.1rem;font-weight:700;border:2px solid #fff3cd;border-radius:8px;padding:6px 10px;"
+                                   inputmode="numeric" oninput="_ajusteActualizarValidacion()">
+                            <select id="ajusteGSelect" onchange="document.getElementById('ajusteG').value=this.value;_ajusteActualizarValidacion()"
+                                    style="flex:2;font-size:0.82rem;border:2px solid #fff3cd;border-radius:8px;padding:6px;">
+                                <option value="0">0 — Sin oferta</option>
+                                <option value="1">1 — 2x1</option>
+                                <option value="2">2 — 3x2</option>
+                                <option value="3">3 — 4x3</option>
+                                <option value="4">4 — 5x4</option>
+                                <option value="5">5 — 6x5</option>
+                                <option value="6">6 — 7x6</option>
+                                <option value="7">7 — 8x7</option>
+                                <option value="8">8 — 9x8</option>
+                                <option value="9">9 — 10x9</option>
+                                <option value="10">10 — 2da al 50%</option>
+                                <option value="11">11 — 10% OFF</option>
+                                <option value="12">12 — 15% OFF</option>
+                                <option value="13">13 — 20% OFF</option>
+                                <option value="14">14 — 25% OFF</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Destacada (col H) -->
+                    <div style="margin-bottom:10px;">
+                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">🔥 Destacada % descuento (col H) — 0=inactivo, 11-70=activo</div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <input type="number" id="ajusteH" min="0" max="70" step="1" placeholder="0"
+                                   style="flex:1;font-size:1.1rem;font-weight:700;border:2px solid #ffe0b2;border-radius:8px;padding:6px 10px;"
+                                   inputmode="numeric" oninput="_ajusteActualizarValidacion()">
+                            <span style="color:#888;font-size:0.9rem;">%</span>
+                            <button onclick="document.getElementById('ajusteH').value=0;_ajusteActualizarValidacion()"
+                                    style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#888;font-size:0.8rem;cursor:pointer;">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- Especial (col I) -->
+                    <div style="margin-bottom:4px;">
+                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">⭐ Especial (col I)</div>
+                        <div style="display:flex;gap:8px;">
+                            <button id="ajusteI0" onclick="_ajusteSetI(0)"
+                                    style="flex:1;padding:8px;border-radius:8px;border:2px solid #e0e0e0;background:#f5f5f5;font-size:0.85rem;font-weight:600;cursor:pointer;">
+                                0 — Normal
+                            </button>
+                            <button id="ajusteI1" onclick="_ajusteSetI(1)"
+                                    style="flex:1;padding:8px;border-radius:8px;border:2px solid #e0e0e0;background:#f5f5f5;font-size:0.85rem;font-weight:600;cursor:pointer;">
+                                1 — ⭐ Especial
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Categoría (para activar PROMOS / COMBOS) -->
+                <details style="margin-bottom:14px;">
+                    <summary style="font-size:0.78rem;font-weight:700;color:#555;cursor:pointer;padding:6px 0;">🏷️ Categoría y nombre</summary>
+                    <div style="margin-top:8px;">
+                        <div style="font-size:0.7rem;color:#888;margin-bottom:4px;">✏️ Nombre</div>
+                        <input type="text" id="ajusteNombreNuevo"
+                               style="width:100%;font-size:0.95rem;font-weight:600;border:2px solid #e0e0e0;border-radius:10px;padding:8px 12px;margin-bottom:10px;text-transform:uppercase;box-sizing:border-box;">
+                        <div style="font-size:0.7rem;color:#888;margin-bottom:4px;">🏷️ Categoría</div>
+                        <div class="categorias-grid" id="ajusteCatGrid" style="margin-bottom:8px;"></div>
+                        <input type="hidden" id="ajusteCategoria">
+                    </div>
+                </details>
 
                 <!-- Guardar -->
                 <button onclick="guardarAjuste()" id="ajusteBtn"
@@ -1318,18 +1400,10 @@
                     ✅ Guardar
                 </button>
 
-                <!-- MÁS OPCIONES colapsado -->
-                <button onclick="toggleAjusteExtra()" id="ajusteExtraBtn"
-                        style="width:100%;padding:9px;border:1px solid #ddd;border-radius:10px;background:#fafafa;color:#888;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:0;">
-                    ▸ Nombre y categoría
-                </button>
-                <div id="ajusteExtra" style="display:none;margin-top:10px;">
-                    <div style="font-size:0.7rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">✏️ Nombre</div>
-                    <input type="text" id="ajusteNombreNuevo"
-                           style="width:100%;font-size:0.95rem;font-weight:600;border:2px solid #e0e0e0;border-radius:10px;padding:8px 12px;margin-bottom:14px;text-transform:uppercase;box-sizing:border-box;">
-                    <div style="font-size:0.7rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🏷️ Categoría</div>
-                    <div class="categorias-grid" id="ajusteCatGrid" style="margin-bottom:8px;"></div>
-                    <input type="hidden" id="ajusteCategoria">
+                <!-- campos ocultos legacy -->
+                <div id="ajustePromoWrap" style="display:none;">
+                    <button id="ajustePromoBtn"></button>
+                    <div id="ajustePromoInfo"></div>
                 </div>
 
             </div>
@@ -4981,10 +5055,15 @@ function seleccionarAjuste(id) {
             return `<button class="cat-btn${activo}" onclick="selAjusteCategoria('${cat}')" id="ajCatBtn_${cat.replace(/\s/g,'_')}">${cat}</button>`;
         }).join('');
     }
-    document.getElementById('ajustePanel').style.display = 'block';
+    // Cargar campos de ofertas
+    document.getElementById('ajusteL').value = p.precioPromo > 0 ? p.precioPromo : '';
+    document.getElementById('ajusteG').value = p.relampago || 0;
+    document.getElementById('ajusteGSelect').value = p.relampago || 0;
+    document.getElementById('ajusteH').value = p.destacada || 0;
+    _ajusteSetI(p.especial || 0, true);
 
-    // ── Toggle PROMO ──
-    _actualizarTogglePromoAjuste(p);
+    document.getElementById('ajustePanel').style.display = 'block';
+    _ajusteActualizarValidacion();
 }
 
 function selAjusteCategoria(cat) {
@@ -5042,6 +5121,89 @@ function _actualizarTogglePromoAjuste(p) {
         info.style.color      = '#aaa';
         info.textContent      = `Precio normal: $${p.price.toLocaleString('es-AR')} · Promo: $${p.precioPromo.toLocaleString('es-AR')}`;
     }
+}
+
+// ══ EDITOR RÁPIDO — funciones de validación y campos ══════════
+
+function _ajusteSetI(val, silent) {
+    document.getElementById('ajusteI0').style.background = val === 0 ? '#e3f2fd' : '#f5f5f5';
+    document.getElementById('ajusteI0').style.borderColor = val === 0 ? '#1976d2' : '#e0e0e0';
+    document.getElementById('ajusteI1').style.background = val === 1 ? '#fff8e1' : '#f5f5f5';
+    document.getElementById('ajusteI1').style.borderColor = val === 1 ? '#f9a825' : '#e0e0e0';
+    document.getElementById('ajusteI0').dataset.val = 0;
+    document.getElementById('ajusteI1').dataset.val = 1;
+    // guardar valor actual en data attr del panel
+    document.getElementById('ajustePanel').dataset.especial = val;
+    if (!silent) _ajusteActualizarValidacion();
+}
+
+function _ajusteGetI() {
+    return parseInt(document.getElementById('ajustePanel').dataset.especial || '0');
+}
+
+function _ajusteActualizarValidacion() {
+    if (!ajusteProducto) return;
+    const el = document.getElementById('ajusteValidacionJ');
+    if (!el) return;
+
+    const precio = parseFloat(document.getElementById('ajustePrecioNuevo').value) || ajusteProducto.price;
+    const L      = parseFloat(document.getElementById('ajusteL').value) || 0;
+    const G      = parseInt(document.getElementById('ajusteG').value) || 0;
+    const H      = parseFloat(document.getElementById('ajusteH').value) || 0;
+    const I      = _ajusteGetI();
+    const S      = ajusteProducto.costo || 0;
+    const cat    = ajusteCategoriaSeleccionada || ajusteProducto.category || '';
+    const F      = ajusteValor || ajusteProducto.stock || 0;
+
+    // Simular lógica de col J
+    let resultado = '';
+    let color = '#888'; let bg = '#f5f5f5';
+
+    if (F <= 0) {
+        resultado = '📦 sin stock'; color = '#888';
+    } else if ((cat === 'PROMOS' || cat === 'COMBOS') && L === 0) {
+        resultado = '⚠️ FALTA PRECIO PROMO — ingresá valor en col L'; color = '#e65100'; bg = '#fff3e0';
+    } else if ((cat === 'PROMOS' || cat === 'COMBOS') && S > 0 && L < S) {
+        resultado = '🔴 ERROR PRECIO POR DEBAJO COSTO — mínimo $' + S.toLocaleString('es-AR'); color = '#c62828'; bg = '#ffebee';
+    } else if ((cat === 'PROMOS' || cat === 'COMBOS') && L >= precio) {
+        resultado = '🔴 ERROR PRECIO ' + cat + ' MAYOR — debe ser menor a $' + precio.toLocaleString('es-AR'); color = '#c62828'; bg = '#ffebee';
+    } else if ((cat === 'PROMOS' || cat === 'COMBOS') && L > 0 && L >= precio * 0.9) {
+        resultado = '⚠️ DESCUENTO INSUFICIENTE — mínimo 10% · sugerido $' + Math.round(precio*0.9).toLocaleString('es-AR'); color = '#e65100'; bg = '#fff3e0';
+    } else if ((cat === 'PROMOS') && L > 0 && L < precio * 0.9) {
+        resultado = '✅ promo activa — precio $' + L.toLocaleString('es-AR'); color = '#2e7d32'; bg = '#e8f5e9';
+    } else if ((cat === 'COMBOS') && L > 0 && L < precio * 0.9) {
+        resultado = '✅ combo activa — precio $' + L.toLocaleString('es-AR'); color = '#2e7d32'; bg = '#e8f5e9';
+    } else if ((I===1) + (H>0) + (G>0) > 1) {
+        resultado = '🔴 ERROR DOBLE OFERTA — elegí solo una'; color = '#c62828'; bg = '#ffebee';
+    } else if (H > 0 && H <= 10) {
+        resultado = '⚠️ ERROR DESTACADA — mínimo 11%'; color = '#e65100'; bg = '#fff3e0';
+    } else if (H > 70) {
+        resultado = '⚠️ ERROR DESTACADA — máximo 70%'; color = '#e65100'; bg = '#fff3e0';
+    } else if (H > 0 && S > 0 && precio*(1-H/100) <= S) {
+        resultado = '🔴 ERROR DESTACADA BAJO COSTO — precio con descuento queda en $' + Math.round(precio*(1-H/100)).toLocaleString('es-AR'); color = '#c62828'; bg = '#ffebee';
+    } else if (G >= 1 && G <= 9 && F < G+1) {
+        resultado = '⚠️ REPONER ' + ((G+1)-F) + ' PARA OFERTA'; color = '#e65100'; bg = '#fff3e0';
+    } else if (G === 10 && F < 2) {
+        resultado = '⚠️ REPONER ' + (2-F) + ' PARA OFERTA'; color = '#e65100'; bg = '#fff3e0';
+    } else if (I === 1) {
+        resultado = '⭐ especial activo — ' + Math.round(precio*0.9).toLocaleString('es-AR'); color = '#1565c0'; bg = '#e3f2fd';
+    } else if (H > 0) {
+        resultado = '🔥 destacada — $' + Math.round(precio*(1-H/100)).toLocaleString('es-AR') + ' (-' + H + '%)'; color = '#e65100'; bg = '#fff8e1';
+    } else if (G >= 1 && G <= 9) {
+        resultado = '⚡ relámpago ' + (G+1) + 'x' + G; color = '#f9a825'; bg = '#fffde7';
+    } else if (G === 10) {
+        resultado = '⚡ 2da al 50% — $' + Math.round(precio*0.75).toLocaleString('es-AR'); color = '#f9a825'; bg = '#fffde7';
+    } else if (G >= 11 && G <= 14) {
+        const pcts = {11:10,12:15,13:20,14:25};
+        resultado = '⚡ RELAMPAGO ' + pcts[G] + '% — $' + Math.round(precio*(1-pcts[G]/100)).toLocaleString('es-AR'); color = '#f9a825'; bg = '#fffde7';
+    } else {
+        resultado = 'sin oferta'; color = '#888'; bg = '#f5f5f5';
+    }
+
+    el.textContent = resultado;
+    el.style.color = color;
+    el.style.background = bg;
+    el.style.borderLeft = resultado.includes('✅') ? '4px solid #2e7d32' : 'none';
 }
 
 function toggleAjustePromo() {
@@ -7031,7 +7193,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '183';
+    const VERSION = '185';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
@@ -7365,6 +7527,22 @@ document.getElementById('modalWifiQR').addEventListener('click', function(e) {
 const GAS_URL_FLYER = API_URL;
 let _flyerCanvasAdmin = null;
 let _flyerNombreLocal = '';
+let _flyerImageCache = {}; // cache de imágenes precargadas
+
+async function _cargarImagenFlyer(slug) {
+    if (_flyerImageCache[slug] !== undefined) return _flyerImageCache[slug];
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload  = () => { _flyerImageCache[slug] = img; resolve(img); };
+        img.onerror = () => { _flyerImageCache[slug] = null; resolve(null); };
+        img.src = 'imagenes-productos/' + slug + '.jpg';
+    });
+}
+
+async function _precargarImagenesFlyer(prods) {
+    const slugs = prods.map(p => simplificarNombre(p.nombre));
+    await Promise.all(slugs.map(s => _cargarImagenFlyer(s)));
+}
 let _flyerProductos = [];
 let _flyerHoraCierre = 22;
 
@@ -7383,6 +7561,7 @@ async function abrirFlyerAdmin() {
     } catch(e) {
         mostrarToast('❌ Error cargando datos', 'rojo'); return;
     }
+    await _precargarImagenesFlyer(_flyerProductos);
     const canvas = _generarCanvasFlyer(_flyerProductos, _flyerHoraCierre, _flyerNombreLocal);
     _flyerCanvasAdmin = canvas;
     const wrap = document.getElementById('flyerWrapAdmin');
@@ -7567,10 +7746,23 @@ function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
             ctx.beginPath(); ctx.roundRect(bx,by,78,56,10); ctx.fill();
             ctx.strokeStyle='rgba(82,232,138,0.4)'; ctx.lineWidth=1.5;
             ctx.beginPath(); ctx.roundRect(bx,by,78,56,10); ctx.stroke();
-            ctx.font='28px sans-serif'; ctx.textAlign='center';
-            ctx.fillText('🍔',bx+39,cy+6);
-            ctx.font='bold 9px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.9)';
-            ctx.fillText('TOP',bx+39,cy+20);
+            const _slugTop = simplificarNombre(p.nombre || '');
+            const _imgTop  = _flyerImageCache[_slugTop];
+            if (_imgTop) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(bx, by, 78, 56, 10);
+                ctx.clip();
+                ctx.drawImage(_imgTop, bx, by, 78, 56);
+                ctx.restore();
+                ctx.font='bold 9px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.9)'; ctx.textAlign='center';
+                ctx.fillText('TOP',bx+39,by+56+12);
+            } else {
+                ctx.font='28px sans-serif'; ctx.textAlign='center';
+                ctx.fillText('🍔',bx+39,cy+6);
+                ctx.font='bold 9px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.9)';
+                ctx.fillText('TOP',bx+39,cy+20);
+            }
         } else {
             // Fila normal
             ctx.fillStyle = idx%2===0 ? 'rgba(255,255,255,0.02)' : 'rgba(212,175,55,0.03)';
@@ -7591,9 +7783,21 @@ function _generarCanvasFlyer(prods, horaCierre, nombreLocal) {
                 ctx.font='11px sans-serif'; ctx.fillStyle='rgba(82,232,138,0.7)';
                 ctx.fillText('Ahorrás $' + p._ah.toLocaleString('es-AR'), PAD, yOff+90);
             }
-            // Emoji
-            ctx.font='22px sans-serif'; ctx.textAlign='center';
-            ctx.fillText(['🌮','🍟','🌭','🥤','🍕'][idx%5], W-PAD-20, cy+8);
+            // Foto o emoji fallback
+            const _slug = simplificarNombre(p.nombre || '');
+            const _img  = _flyerImageCache[_slug];
+            const _ex = W-PAD-50, _ey = yOff+8, _es = 44;
+            if (_img) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(_ex, _ey, _es, _es, 8);
+                ctx.clip();
+                ctx.drawImage(_img, _ex, _ey, _es, _es);
+                ctx.restore();
+            } else {
+                ctx.font='22px sans-serif'; ctx.textAlign='center';
+                ctx.fillText(['🌮','🍟','🌭','🥤','🍕'][idx%5], W-PAD-20, cy+8);
+            }
             if (idx < lista.length-1) {
                 ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1;
                 ctx.beginPath(); ctx.moveTo(PAD,yOff+RH-2); ctx.lineTo(W-PAD,yOff+RH-2); ctx.stroke();

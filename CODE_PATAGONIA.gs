@@ -462,18 +462,44 @@ function ajustarProducto(datos) {
 
     if (filaProducto === -1) return { success: false, mensaje: 'Producto no encontrado: ' + producto };
 
-    const stockNuevo  = (datos.stockDespues !== undefined && datos.stockDespues !== null) ? Number(datos.stockDespues) : stockActual;
-    const precioNuevo = datos.precioDespues ? Number(datos.precioDespues) : precioActual;
+    // stockNuevo: el frontend puede enviar stockNuevo o stockDespues
+    const stockNuevo  = datos.stockNuevo !== undefined ? Number(datos.stockNuevo)
+                      : datos.stockDespues !== undefined ? Number(datos.stockDespues) : stockActual;
+    // precioNuevo: puede venir como precioNuevo o precioDespues
+    const precioNuevo = datos.precioNuevo ? Number(datos.precioNuevo)
+                      : datos.precioDespues ? Number(datos.precioDespues) : precioActual;
     const nombreNuevo = datos.nombreNuevo   ? String(datos.nombreNuevo).trim().toUpperCase() : nombreActual;
-    const catNueva    = datos.categoriaDespues ? String(datos.categoriaDespues).trim().toUpperCase() : catActual;
+    const catNueva    = datos.categoriaNueva ? String(datos.categoriaNueva).trim().toUpperCase()
+                      : datos.categoriaDespues ? String(datos.categoriaDespues).trim().toUpperCase() : catActual;
 
     const stockRegistroAntes  = (datos.stockAntes !== undefined && datos.stockAntes !== null) ? Number(datos.stockAntes) : stockActual;
     const precioRegistroAntes = datos.precioAntes ? Number(datos.precioAntes) : precioActual;
 
+    // Leer valores actuales de ofertas
+    const relampagoActual = Number(datosInv[filaProducto-1][6]) || 0; // G=7
+    const destacadaActual = Number(datosInv[filaProducto-1][7]) || 0; // H=8
+    const especialActual  = Number(datosInv[filaProducto-1][8]) || 0; // I=9
+    const promoActual     = Number(datosInv[filaProducto-1][11]) || 0;// L=12
+
+    // Nuevos valores de ofertas
+    const relampagoNuevo = datos.relampagoNuevo !== undefined ? Number(datos.relampagoNuevo) : relampagoActual;
+    const destacadaNuevo = datos.destacadaNuevo !== undefined ? Number(datos.destacadaNuevo) : destacadaActual;
+    const especialNuevo  = datos.especialNuevo  !== undefined ? Number(datos.especialNuevo)  : especialActual;
+    const promoNuevo     = datos.precioPromoNuevo !== undefined ? Number(datos.precioPromoNuevo) : promoActual;
+
+    // Escribir en planilla
     sheetInventario.getRange(filaProducto, 6).setValue(stockNuevo);
-    if (precioNuevo !== precioActual)   sheetInventario.getRange(filaProducto, 2).setValue(precioNuevo);
-    if (nombreNuevo !== nombreActual)   sheetInventario.getRange(filaProducto, 1).setValue(nombreNuevo);
-    if (catNueva    !== catActual)      sheetInventario.getRange(filaProducto, 3).setValue(catNueva);
+    if (precioNuevo !== precioActual)     sheetInventario.getRange(filaProducto, 2).setValue(precioNuevo);
+    if (nombreNuevo !== nombreActual)     sheetInventario.getRange(filaProducto, 1).setValue(nombreNuevo);
+    if (catNueva    !== catActual)        sheetInventario.getRange(filaProducto, 3).setValue(catNueva);
+    if (relampagoNuevo !== relampagoActual) sheetInventario.getRange(filaProducto, 7).setValue(relampagoNuevo);  // G
+    if (destacadaNuevo  !== destacadaActual) sheetInventario.getRange(filaProducto, 8).setValue(destacadaNuevo); // H
+    if (especialNuevo   !== especialActual)  sheetInventario.getRange(filaProducto, 9).setValue(especialNuevo);  // I
+    // L: si promoNuevo es 0 limpiar, sino escribir
+    if (promoNuevo !== promoActual) {
+      if (promoNuevo > 0) sheetInventario.getRange(filaProducto, 12).setValue(promoNuevo);
+      else                sheetInventario.getRange(filaProducto, 12).clearContent();
+    }
 
     const fechaAj = new Date();
     sheetAjuste.appendRow([
@@ -486,10 +512,14 @@ function ajustarProducto(datos) {
     ]);
 
     let cambios = [];
-    if (stockNuevo !== stockRegistroAntes)   cambios.push('Stock: ' + stockRegistroAntes + ' → ' + stockNuevo);
-    if (precioNuevo !== precioRegistroAntes)  cambios.push('Precio: $' + precioRegistroAntes + ' → $' + precioNuevo);
-    if (nombreNuevo !== nombreActual)         cambios.push('Nombre: ' + nombreActual + ' → ' + nombreNuevo);
-    if (catNueva    !== catActual)            cambios.push('Categoría: ' + catActual + ' → ' + catNueva);
+    if (stockNuevo !== stockRegistroAntes)     cambios.push('Stock: ' + stockRegistroAntes + ' → ' + stockNuevo);
+    if (precioNuevo !== precioRegistroAntes)   cambios.push('Precio: $' + precioRegistroAntes + ' → $' + precioNuevo);
+    if (nombreNuevo !== nombreActual)          cambios.push('Nombre: ' + nombreActual + ' → ' + nombreNuevo);
+    if (catNueva    !== catActual)             cambios.push('Categoría: ' + catActual + ' → ' + catNueva);
+    if (relampagoNuevo !== relampagoActual)    cambios.push('Relámpago: ' + relampagoActual + ' → ' + relampagoNuevo);
+    if (destacadaNuevo  !== destacadaActual)   cambios.push('Destacada: ' + destacadaActual + '% → ' + destacadaNuevo + '%');
+    if (especialNuevo   !== especialActual)    cambios.push('Especial: ' + especialActual + ' → ' + especialNuevo);
+    if (promoNuevo      !== promoActual)       cambios.push('Precio promo: $' + promoActual + ' → $' + promoNuevo);
 
     return { success: true, mensaje: '✅ Ajuste guardado\n' + cambios.join('\n'), stockNuevo: stockNuevo };
   } catch (error) {
@@ -650,7 +680,7 @@ function actualizarStockMinimos() {
 
       const actualActual = parseInt(inv[i][13]) || 0;
       if (actualActual !== stockMinimo) {
-        sheetInv.getRange(i + 1, 14).setValue(stockMinimo);
+        sheetInv.getRange(i + 1, 20).setValue(stockMinimo); // T=col20 stock_min_popup
         actualizados++;
       }
     }
@@ -703,7 +733,7 @@ function _ofertaPuntaje_(fila) {
   var dv = _ofertaDiasVencer_(fila);
   var dp = _ofertaDiasDesdePromo_(fila);
   var stock = parseInt(fila[5]) || 0;
-  var rotacion = fila.length > 14 ? (parseInt(fila[14]) || 0) : 0;
+  var rotacion = fila.length > 16 ? (parseInt(fila[16]) || 0) : 0;
   var precio = parseInt(fila[1]) || 0;
   if (dp !== null && dp < 15) return -99;
   if (dv !== null) {
@@ -740,7 +770,7 @@ function _ofertaBuildProducto_(fila, i) {
     relampago:         parseInt(fila[6]) || 0,
     destacada:         parseInt(fila[7]) || 0,
     especial:          parseInt(fila[8]) || 0,
-    rotacion:          fila.length > 14 ? (parseInt(fila[14]) || 0) : 0,
+    rotacion:          fila.length > 16 ? (parseInt(fila[16]) || 0) : 0,
     vencimiento:       venc,
     diasParaVencer:    dpv,
     estadoVencimiento: estadoVencimiento,
@@ -753,7 +783,7 @@ function calcularOfertas() {
   var sheet = ss.getSheetByName(HOJA_INVENTARIO);
   var datos = sheet.getDataRange().getValues();
 
-  var limites = { relampago: 3, especiales: 2, destacadas: 9, ultimasUnidades: 15 };
+  var limites = { relampago: 3, especiales: 2, destacadas: 9 };
   var horariosOferta = {
     relampago:  { inicio: 0,  cierre: 24, activo: false },
     destacadas: { inicio: 0,  cierre: 24, activo: false },
@@ -866,32 +896,20 @@ function calcularOfertas() {
            nom.includes('BIRRA') || nom.includes(' IPA') || nom.includes(' STOUT') || nom.includes(' PORTER');
   }
 
-  // Helper: verifica stock mínimo según tipo de promo (col G = tipo relámpago)
-  // G=1 → 2x1 (necesita ≥2), G=2 → 3x2 (≥3), G=3 → 4x3 (≥4), etc.
-  // No depende de col J — la fórmula nueva ya no dice REPONER
+  // Helper: detecta si la columna J dice que hay que reponer stock para la promo
   function _stockSuficienteParaOferta_(fila) {
-    var stock     = parseInt(fila[5]) || 0;
-    var relampago = parseInt(fila[6]) || 0;
-    if (stock <= 0) return false;
-    // NxM: el primer número es cuántas hay que tener
-    if (relampago >= 1 && relampago <= 9) {
-      var necesario = relampago + 1; // G=1→2x1→necesita 2, G=2→3x2→necesita 3
-      return stock >= necesario;
-    }
-    // G=10 (2da50%): necesita stock >= 2
-    if (relampago === 10) return stock >= 2;
+    var catOferta = String(fila[9] || '').trim().toUpperCase();
+    // Si dice REPONER → stock insuficiente para la promo
+    if (catOferta.indexOf('REPONER') !== -1) return false;
+    // Verificar stock mínimo según tipo de promo
+    var stock = parseInt(fila[5]) || 0;
+    if (catOferta.indexOf('3X2') !== -1 || catOferta.indexOf('3 X 2') !== -1) return stock >= 3;
+    if (catOferta.indexOf('2X1') !== -1 || catOferta.indexOf('2 X 1') !== -1) return stock >= 2;
+    if (catOferta.indexOf('4X3') !== -1 || catOferta.indexOf('4 X 3') !== -1) return stock >= 4;
     return stock >= 1;
   }
 
-  // Helper: detecta si el stock es insuficiente para la promo (para notificaciones)
-  function _stockInsuficienteParaOferta_(fila) {
-    var relampago = parseInt(fila[6]) || 0;
-    if (relampago <= 0) return false;
-    return !_stockSuficienteParaOferta_(fila);
-  }
-
   var candidatosRelampago = [];
-  var notifReponerStock = []; // productos con oferta configurada pero stock insuficiente
   for (var i3 = 1; i3 < datos.length; i3++) {
     var fila3 = datos[i3];
     if (!fila3[0]) continue;
@@ -899,17 +917,7 @@ function calcularOfertas() {
     var stock3 = parseInt(fila3[5]) || 0;
     var relampago3 = parseInt(fila3[6]) || 0;
     if (stock3 <= 0 || relampago3 <= 0) continue;
-    if (!_stockSuficienteParaOferta_(fila3)) {
-      // Stock insuficiente → agregar a notificaciones pero NO al pool de ofertas
-      var necesario3 = relampago3 + 1;
-      notifReponerStock.push({
-        nombre: String(fila3[0]).trim(),
-        stock: stock3,
-        necesario: necesario3,
-        tipo: (relampago3 >= 1 && relampago3 <= 9) ? (relampago3+1)+'x'+relampago3 : relampago3
-      });
-      continue;
-    }
+    if (!_stockSuficienteParaOferta_(fila3)) continue; // columna J: REPONER o stock insuficiente
     var cat3 = String(fila3[2] || '').trim().toUpperCase();
     if (cat3 === 'CERVEZAS') continue;
     if (cerveceroActivoHoy && _esCerveza_(fila3)) continue;
@@ -1081,9 +1089,6 @@ function calcularOfertas() {
     success: true,
     relampagoActivo:      relampagoActivo,
     relampagoPool:        relampagoPoolCompleto,
-    notifReponerStock:    notifReponerStock,
-    ultimasUnidades:      _calcularUltimasUnidades(datos, limitesHoy),
-    ultimasSeleccionadas: _calcularUltimasUnidades(datos, limitesHoy),
     destacadasActivas:    destacadasRotadas,
     destacadasPool:       destacadasPool,
     especialesActivas:    especialesActivas,
@@ -1122,7 +1127,7 @@ function calcularMotorSugerencias() {
       const precio = parseInt(fila[1]) || 0;
       const stock = parseInt(fila[5]) || 0;
       const relampago = parseInt(fila[6]) || 0;
-      const rotacion = fila.length > 14 ? (parseInt(fila[14]) || 0) : 0;
+      const rotacion = fila.length > 16 ? (parseInt(fila[16]) || 0) : 0;
       if (stock <= 0 || relampago <= 0) continue;
 
       let diasParaVencer = null;
@@ -1661,7 +1666,7 @@ function doGet(e) {
       const fila = datos[i];
       if (!fila[0]) continue;
       const nombreKey = String(fila[0] || '').trim().toUpperCase();
-      const rotacionCalculada = rotacionAuto[nombreKey] || (fila.length > 14 ? (parseInt(fila[14]) || 1) : 1);
+      const rotacionCalculada = rotacionAuto[nombreKey] || (fila.length > 16 ? (parseInt(fila[16]) || 1) : 1);
 
       const producto = {
         id: i,
@@ -1685,11 +1690,13 @@ function doGet(e) {
           } catch(e) { return ''; }
         })(),
         rotacion: rotacionCalculada,
-        costo: fila.length > 18 ? (parseFloat(fila[18]) || 0) : 0,
-        diaCritico: fila.length > 16 ? String(fila[16] || '').trim().toLowerCase() : '',
-        stockMin: parseInt(fila[13]) || 0,
+        costo:      fila.length > 13 ? (parseFloat(fila[13]) || 0) : 0, // N(14)=COSTO
+        stockMin:   fila.length > 19 ? (parseInt(fila[19])   || 0) : 0, // T(20)=stock_min_popup
+        stockMinPopup: fila.length > 19 ? (parseInt(fila[19]) || 0) : 0,
+        diaCritico: fila.length > 20 ? String(fila[20] || '').trim().toLowerCase() : '', // U(21)
         prioridad: fila.length > 31 ? String(fila[31] || '').trim().toUpperCase() : 'NORMAL',
         pausadoListaCompra: fila.length > 34 ? String(fila[34] || '').trim().toUpperCase() : '',
+        enFlyer:           fila.length > 37 ? (String(fila[37] || '').trim() === '1') : false, // AL=38
         ultimaPromo: '',
         categoriaOferta: String(fila[9] || '').trim()
       };
@@ -1708,9 +1715,10 @@ function doGet(e) {
           if (!isNaN(num) && num > 0) producto.normal = num;
         }
       }
-      // ── Col K = precio promo — siempre se lee, solo se activa en categoría PROMOS ──
-      if (fila.length > 10) {
-        const kVal = parseInt(fila[10]) || 0;
+      // ── Col L(12) = $promos_activa — precio promo manual ──
+      // ── Col K(11) = precio técnico (fórmula), NO es el precio promo ──
+      if (fila.length > 11) {
+        const kVal = parseInt(fila[11]) || 0; // L=idx11 $promos_activa
         if (kVal > 0 && kVal < producto.price) {
           producto.precioPromo = kVal;
           producto.pctPromo    = Math.round((producto.price - kVal) / producto.price * 100);
@@ -3155,7 +3163,8 @@ function _registrarIngresoFiadoCaja_(ss, d) {
 // Borra todos los datos transaccionales y deja el inventario con stock=0
 // Se activa sólo si el PIN recibido coincide con RESET_PIN
 function resetearPlanilla(pin) {
-  // PIN desde CONFIG_UI — si no está configurado usa 7749 como fallback
+
+  // ── PIN desde CONFIG_UI ──────────────────────────────────────
   var RESET_PIN = '7749';
   try {
     var ssCfg  = SpreadsheetApp.openById(SS_ID);
@@ -3170,7 +3179,8 @@ function resetearPlanilla(pin) {
         }
       }
     }
-  } catch(ePin) { /* usa fallback */ }
+  } catch(ePin) { /* fallback 7749 */ }
+
   if (String(pin) !== RESET_PIN) {
     return { ok: false, msg: 'PIN incorrecto' };
   }
@@ -3178,65 +3188,170 @@ function resetearPlanilla(pin) {
   try {
     var ss = SpreadsheetApp.openById(SS_ID);
 
-    // 1. Hojas de transacciones → borrar todo menos la fila de encabezado
-    var hojasTrans = ['Ventas', 'FIADOS', 'SALIDAS', 'Caja',
-                      'CAJA_MOVIMIENTOS', 'Historial', 'Ajuste_Rapido',
-                      'Interruptores_Log', 'evento_cerveza_log',
-                      'Clientes', 'Lista de compra', 'carrito_temp'];
+    // ════════════════════════════════════════
+    // CONSTANTES DE ARQUITECTURA
+    // ════════════════════════════════════════
+    var START_ROW = 3;   // Fila 1=grupo headers, Fila 2=col headers, datos desde fila 3
+    var DEMO_ROWS = 5;   // Cantidad de productos demo a conservar
+    var COL_F = 6;       // Stock
+    var COL_G = 7;       // Relámpago
+    var COL_H = 8;       // Destacada
+    var COL_I = 9;       // Especial
+    var COL_J = 10;      // categoriaOferta — FÓRMULA restaurada
+    var COL_K = 11;      // Precio técnico  — FÓRMULA restaurada
+    var COL_L = 12;      // $promos_activa  — se limpia
 
+    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
+    if (!shInv) throw new Error('No se encontró hoja inventario');
+    var lastRowInv = shInv.getLastRow();
+
+    // ════════════════════════════════════════
+    // PASO 1: HOJAS TRANSACCIONALES
+    // ════════════════════════════════════════
+    var hojasTrans = [
+      'Ventas', 'FIADOS', 'SALIDAS', 'Caja',
+      'CAJA_MOVIMIENTOS', 'Ajuste_Rapido',
+      'Interruptores_Log', 'Clientes',
+      'Lista de compra', 'carrito_temp'
+    ];
     hojasTrans.forEach(function(nombre) {
       var sh = ss.getSheetByName(nombre);
       if (!sh) return;
-      var lastRow = sh.getLastRow();
-      if (lastRow > 1) {
-        sh.deleteRows(2, lastRow - 1);
-      }
+      var lr = sh.getLastRow();
+      if (lr > 1) sh.deleteRows(2, lr - 1);
     });
 
-    // 2. Inventario → poner STOCK = 0 en columna F, restaurar fórmula col J
-    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
-    var lastRowInv = shInv.getLastRow();
-    if (lastRowInv > 1) {
-      // Stock → 0
-      var stockRange = shInv.getRange(2, 6, lastRowInv - 1, 1);
-      var zeros = Array(lastRowInv - 1).fill([0]);
-      stockRange.setValues(zeros);
+    // ════════════════════════════════════════
+    // PASO 2: INVENTARIO
+    // ════════════════════════════════════════
+    var shPlantilla = ss.getSheetByName('PLANTILLA_BASE');
 
-      // Restaurar fórmula categoriaOferta (col J = columna 10)
-      // La fórmula usa referencias relativas — se aplica fila por fila
-      var formulaBase = '=IF(A2="","",IF(F2=0,"sin stock",IF(AND(C2="PROMOS",F2>0,K2<B2),"promo activa",IF(AND(C2="PROMOS",F2>0,K2>=B2),"ERROR PRECIO PROMO MAYOR",IF(AND(G2>=1,G2<=9,F2<G2+1),"REPONER "&((G2+1)-F2)&" PARA OFERTA",IF(AND(G2=10,F2<2),"REPONER "&(2-F2)&" PARA OFERTA",IF(NOT(OR(I2=0,I2=1)),"ERROR ESPECIAL",IF(NOT(ISNUMBER(MATCH(G2,{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},0))),"CODIGO RELAMPAGO NO VALIDO",IF(AND(H2>0,K2<=S2),"ERROR DESTACADA",IF((I2=1)+(H2>0)+(G2>0)>1,"ERROR DOBLE OFERTA",IF(I2=1,"especial",IF(H2>0,"destacada",IF(AND(G2>=1,G2<=9),(G2+1)&"x"&G2,IF(G2=10,"2da50",IF(G2=11,"RELAMPAGO 10%",IF(G2=12,"RELAMPAGO 15%",IF(G2=13,"RELAMPAGO 20%",IF(G2=14,"RELAMPAGO 25%","sin oferta")))))))))))))))))))';
-      // Aplicar en bloque usando R1C1 con fila relativa
-      var formulasJ = [];
-      for (var r = 2; r <= lastRowInv; r++) {
-        // Construir fórmula con número de fila correcto
-        var f = formulaBase.replace(/([A-Z])2/g, function(match, col){ return col + r; });
-        formulasJ.push([f]);
+    if (shPlantilla) {
+      // Estrategia segura: copiar desde PLANTILLA_BASE
+      var plantLastRow = shPlantilla.getLastRow();
+      var plantCols    = shPlantilla.getLastColumn();
+
+      // Eliminar filas de datos existentes
+      if (lastRowInv >= START_ROW) {
+        shInv.deleteRows(START_ROW, lastRowInv - START_ROW + 1);
       }
-      shInv.getRange(2, 10, lastRowInv - 1, 1).setFormulas(formulasJ);
+      // Copiar plantilla: preserva fórmulas, formatos y colores
+      if (plantLastRow >= START_ROW) {
+        var srcRange = shPlantilla.getRange(START_ROW, 1, plantLastRow - START_ROW + 1, plantCols);
+        srcRange.copyTo(shInv.getRange(START_ROW, 1), SpreadsheetApp.CopyPasteType.PASTE_NORMAL, false);
+      }
+      var demoTotal = plantLastRow - START_ROW + 1;
+
+    } else {
+      // Sin PLANTILLA_BASE: limpieza manual + restaurar fórmulas J y K
+      var lastDemoRow = START_ROW + DEMO_ROWS - 1;
+      if (lastRowInv > lastDemoRow) {
+        shInv.deleteRows(lastDemoRow + 1, lastRowInv - lastDemoRow);
+      }
+      var newLast   = shInv.getLastRow();
+      var demoTotal = Math.max(0, Math.min(newLast - START_ROW + 1, DEMO_ROWS));
+
+      if (demoTotal >= 1) {
+        // G, H, I → 0
+        shInv.getRange(START_ROW, COL_G, demoTotal, 3)
+             .setValues(Array(demoTotal).fill([0, 0, 0]));
+        // L → vacío
+        shInv.getRange(START_ROW, COL_L, demoTotal, 1).clearContent();
+        // F → 0
+        shInv.getRange(START_ROW, COL_F, demoTotal, 1)
+             .setValues(Array(demoTotal).fill([0]));
+
+        // Restaurar fórmulas J y K fila por fila
+        var fjBase = '=SI(A{r}="","",SI(NO(ESNUMERO(F{r})),"ERROR STOCK",SI(F{r}<=0,"sin stock",SI(Y(C{r}="PROMOS",F{r}>0,L{r}=""),"FALTA PRECIO PROMO",SI(Y(C{r}="PROMOS",F{r}>0,O(S{r}="",S{r}=0)),"ERROR COSTO SIN VALOR",SI(Y(C{r}="PROMOS",F{r}>0,L{r}>=B{r}),"ERROR PRECIO PROMO MAYOR",SI(Y(C{r}="PROMOS",F{r}>0,L{r}<B{r},L{r}<S{r}),"ERROR PRECIO POR DEBAJO COSTO",SI(Y(C{r}="PROMOS",F{r}>0,L{r}<B{r},L{r}>=(B{r}*0.9)),"DESCUENTO INSUFICIENTE",SI(Y(C{r}="PROMOS",F{r}>0,L{r}<B{r},L{r}<(B{r}*0.9)),"promo activa",SI(Y(C{r}="COMBOS",F{r}>0,L{r}=""),"FALTA PRECIO PROMO",SI(Y(C{r}="COMBOS",F{r}>0,O(S{r}="",S{r}=0)),"ERROR COSTO SIN VALOR",SI(Y(C{r}="COMBOS",F{r}>0,L{r}>=B{r}),"ERROR PRECIO COMBO MAYOR",SI(Y(C{r}="COMBOS",F{r}>0,L{r}<B{r},L{r}<S{r}),"ERROR PRECIO POR DEBAJO COSTO",SI(Y(C{r}="COMBOS",F{r}>0,L{r}<B{r},L{r}>=(B{r}*0.9)),"DESCUENTO INSUFICIENTE",SI(Y(C{r}="COMBOS",F{r}>0,L{r}<B{r},L{r}<(B{r}*0.9)),"combo activa",SI(NO(O(I{r}=0,I{r}=1)),"ERROR ESPECIAL",SI(NO(ESNUMERO(COINCIDIR(G{r},{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14},0))),"CODIGO RELAMPAGO NO VALIDO",SI((I{r}=1)+(H{r}>0)+(G{r}>0)>1,"ERROR DOBLE OFERTA",SI(Y(H{r}>0,H{r}<=10),"ERROR DESTACADA MINIMO 11%",SI(Y(H{r}>0,H{r}>70),"ERROR DESTACADA MAXIMO 70%",SI(Y(H{r}>0,ESNUMERO(S{r}),S{r}>0,B{r}*(1-H{r}/100)<=S{r}),"ERROR DESTACADA BAJO COSTO",SI(Y(G{r}>=1,G{r}<=9,F{r}<G{r}+1),"REPONER "&((G{r}+1)-F{r})&" PARA OFERTA",SI(Y(G{r}=10,F{r}<2),"REPONER "&(2-F{r})&" PARA OFERTA",SI(I{r}=1,"especial",SI(H{r}>0,"destacada",SI(Y(G{r}>=1,G{r}<=9),(G{r}+1)&"x"&G{r},SI(G{r}=10,"2da50",SI(G{r}=11,"RELAMPAGO 10%",SI(G{r}=12,"RELAMPAGO 15%",SI(G{r}=13,"RELAMPAGO 20%",SI(G{r}=14,"RELAMPAGO 25%","sin oferta"))))))))))))))))))))))))))))))))';
+        var fkBase = '=SI(O(A{r}="",J{r}=""),"",SI(J{r}="sin stock","Sin stock disponible",SI(J{r}="FALTA PRECIO PROMO","---> Cargar precio en col L",SI(J{r}="ERROR COSTO SIN VALOR","---> Cargar costo en col S",SI(J{r}="DESCUENTO INSUFICIENTE","---> Precio sugerido: "&TEXTO(B{r}*0.9,"$#,##0"),SI(J{r}="ERROR PRECIO PROMO MAYOR","---> Precio promo debe ser menor a "&TEXTO(B{r},"$#,##0"),SI(J{r}="ERROR PRECIO COMBO MAYOR","---> Precio combo debe ser menor a "&TEXTO(B{r},"$#,##0"),SI(J{r}="ERROR PRECIO POR DEBAJO COSTO","---> Precio mínimo: "&TEXTO(S{r},"$#,##0"),SI(J{r}="ERROR DOBLE OFERTA","---> Elegir solo una oferta: R, D o E",SI(J{r}="ERROR ESPECIAL","---> Especial solo acepta 0 o 1",SI(J{r}="CODIGO RELAMPAGO NO VALIDO","---> Códigos válidos: 1 al 14",SI(J{r}="ERROR DESTACADA MINIMO 11%","---> Destacada debe superar 10%, actual: "&H{r}&"%",SI(J{r}="ERROR DESTACADA MAXIMO 70%","---> Destacada no puede superar 70%, actual: "&H{r}&"%",SI(J{r}="ERROR DESTACADA BAJO COSTO","---> "&TEXTO(B{r}*(1-H{r}/100),"$#,##0")&" queda bajo costo "&TEXTO(S{r},"$#,##0"),SI(IZQUIERDA(J{r},6)="REPONER","Reponer stock para activar oferta",SI(J{r}="promo activa",L{r},SI(J{r}="combo activa",L{r},SI(J{r}="sin oferta",B{r},SI(J{r}="especial",B{r}*0.9,SI(J{r}="destacada",B{r}*(1-H{r}/100),SI(J{r}="2da50",B{r}*0.75,SI(J{r}="RELAMPAGO 10%",B{r}*0.9,SI(J{r}="RELAMPAGO 15%",B{r}*0.85,SI(J{r}="RELAMPAGO 20%",B{r}*0.8,SI(J{r}="RELAMPAGO 25%",B{r}*0.75,""))))))))))))))))))))))))))';
+        var formulasJ = [], formulasK = [];
+        for (var r = START_ROW; r <= START_ROW + demoTotal - 1; r++) {
+          var fr = String(r);
+          formulasJ.push([fjBase.replace(/{r}/g, fr)]);
+          formulasK.push([fkBase.replace(/{r}/g, fr)]);
+        }
+        shInv.getRange(START_ROW, COL_J, demoTotal, 1).setFormulas(formulasJ);
+        shInv.getRange(START_ROW, COL_K, demoTotal, 1).setFormulas(formulasK);
+      }
     }
 
-    // 3. config_sistema → limpiar solo filas de estado (ventas del día, caja, etc.)
-    //    Dejamos las filas de configuración del sistema intactas
+    // ════════════════════════════════════════
+    // PASO 3: CONFIG_SISTEMA — estado diario
+    // ════════════════════════════════════════
     var shCfg = ss.getSheetByName(HOJA_CONFIG);
     if (shCfg) {
+      var CLAVES_ESTADO = [
+        'VENTAS_HOY','CAJA_HOY','ULTIMO_TICKET','TICKET_COUNTER',
+        'TOTAL_HOY','EFECTIVO_HOY','TRANSFERENCIA_HOY','MP_HOY',
+        'FIADO_HOY','GASTOS_HOY'
+      ];
       var cfgData = shCfg.getDataRange().getValues();
       for (var i = 1; i < cfgData.length; i++) {
-        var clave = String(cfgData[i][0] || '').toUpperCase();
-        // Solo resetear claves de estado, no de configuración
-        if (['VENTAS_HOY', 'CAJA_HOY', 'ULTIMO_TICKET', 'TICKET_COUNTER',
-             'TOTAL_HOY', 'EFECTIVO_HOY', 'TRANSFERENCIA_HOY', 'MP_HOY',
-             'FIADO_HOY', 'GASTOS_HOY'].indexOf(clave) !== -1) {
+        var clave = String(cfgData[i][0] || '').toUpperCase().trim();
+        if (CLAVES_ESTADO.indexOf(clave) !== -1) {
           shCfg.getRange(i + 1, 2).setValue(0);
         }
       }
     }
 
-    return { ok: true, msg: '✅ Planilla reseteada correctamente. Stock en 0, transacciones borradas.' };
+    // ════════════════════════════════════════
+    // PASO 4: HISTORIAL — costos de referencia
+    // La fórmula S del inventario lee de aquí
+    // ════════════════════════════════════════
+    var shHist = ss.getSheetByName('Historial');
+    if (shHist) {
+      var histLastRow = shHist.getLastRow();
+      if (histLastRow > 1) shHist.deleteRows(2, histLastRow - 1);
+      var fechaDemo = new Date();
+      var filasDemo = [
+        [fechaDemo, "MILANEZAS", 1, 1, "", "DEMO", 3025, 5500, ""],
+        [fechaDemo, "BONDIOLAS", 1, 1, "", "DEMO", 4675, 8500, ""],
+        [fechaDemo, "HAMBURGU", 1, 1, "", "DEMO", 9900, 18000, ""],
+        [fechaDemo, "CHORIPAN", 1, 1, "", "DEMO", 2640, 4800, ""],
+        [fechaDemo, "POLLO 1/4", 1, 1, "", "DEMO", 2310, 4200, ""],
+        [fechaDemo, "PIZZAS", 1, 1, "", "DEMO", 1540, 2800, ""],
+        [fechaDemo, "PIZETAS", 1, 1, "", "DEMO", 2090, 3800, ""],
+        [fechaDemo, "TORTA FRITA", 1, 1, "", "DEMO", 1760, 3200, ""],
+        [fechaDemo, "FRITAS", 1, 1, "", "DEMO", 2200, 4000, ""],
+        [fechaDemo, "CONO", 1, 1, "", "DEMO", 2475, 4500, ""],
+        [fechaDemo, "EMPANADAS", 1, 1, "", "DEMO", 1925, 3500, ""],
+        [fechaDemo, "PASTELITOS", 1, 1, "", "DEMO", 3025, 5500, ""],
+        [fechaDemo, "CHURROS", 1, 1, "", "DEMO", 1100, 2000, ""],
+        [fechaDemo, "ALFAJORE G", 1, 1, "", "DEMO", 1540, 2800, ""],
+        [fechaDemo, "ALFAJOR CH", 1, 1, "", "DEMO", 1760, 3200, ""],
+        [fechaDemo, "CUBANITOS", 1, 1, "", "DEMO", 1430, 2600, ""],
+        [fechaDemo, "AGUAS", 1, 1, "", "DEMO", 990, 1800, ""],
+        [fechaDemo, "AG/SABORI", 1, 1, "", "DEMO", 1210, 2200, ""],
+        [fechaDemo, "CERVEZAS", 1, 1, "", "DEMO", 1540, 2800, ""],
+        [fechaDemo, "GASEOSAS", 1, 1, "", "DEMO", 1760, 3200, ""],
+        [fechaDemo, "SANG/VERDE", 1, 1, "", "DEMO", 660, 1200, ""],
+        [fechaDemo, "SANG/VEGA", 1, 1, "", "DEMO", 990, 1800, ""],
+        [fechaDemo, "SANG/CELIA", 1, 1, "", "DEMO", 1320, 2400, ""],
+        [fechaDemo, "ENSALADA 1", 1, 1, "", "DEMO", 1540, 2800, ""],
+        [fechaDemo, "ENSALADA 2", 1, 1, "", "DEMO", 1760, 3200, ""],
+        [fechaDemo, "ENSALADA 3", 1, 1, "", "DEMO", 1210, 2200, ""],
+        [fechaDemo, "CAFE 1", 1, 1, "", "DEMO", 495, 900, ""],
+        [fechaDemo, "CAFE 2", 1, 1, "", "DEMO", 495, 900, ""]
+      ];
+      shHist.getRange(2, 1, filasDemo.length, 9).setValues(filasDemo);
+    }
+
+    SpreadsheetApp.flush();
+
+    return {
+      ok:  true,
+      msg: '✅ Reset completado.\n' +
+           '• ' + demoTotal + ' productos demo restaurados.\n' +
+           '• Fórmulas J y K preservadas.\n' +
+           '• Historial con costos de referencia.\n' +
+           '• Transacciones borradas.'
+    };
 
   } catch(e) {
     return { ok: false, msg: '❌ Error: ' + e.toString() };
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════
 // PATAGONIA SALVAJE — FUNCIONES NUEVAS
@@ -3350,97 +3465,95 @@ function getSalidasInternas(datos) {
 // Igual a getJuevesCervecero pero filtra PROMOS en lugar de cervezas
 function getPromoEspecial() {
   try {
-    var ss    = SpreadsheetApp.openById(SS_ID);
-    var shInv = ss.getSheetByName(HOJA_INVENTARIO);
-    var shCfg = ss.getSheetByName(HOJA_CONFIG);
-
+    var ss     = SpreadsheetApp.openById(SS_ID);
+    var shInv  = ss.getSheetByName(HOJA_INVENTARIO);
+    var shCfgU = ss.getSheetByName('CONFIG_UI');
     if (!shInv) return { success: false, productos: [] };
 
-    var invRows = shInv.getDataRange().getValues();
-    var tz      = Session.getScriptTimeZone();
-    var hoy     = new Date();
-    var diaSem  = hoy.getDay(); // 0=DOM..6=SÁB → mapeamos a col LUN=1
-    var colDia  = diaSem === 0 ? 7 : diaSem; // domingo → col 7
-
-    // Hora de cierre desde config_sistema
-    var horaCierre = 22;
-    if (shCfg) {
-      var cfgRows = shCfg.getDataRange().getValues();
-      for (var c = 1; c < cfgRows.length; c++) {
-        var lk = String(cfgRows[c][0] || '').toLowerCase().trim();
-        if (lk === 'horario cierre local') {
-          var v = cfgRows[c][colDia];
-          if (v !== '' && !isNaN(parseFloat(v))) { horaCierre = parseFloat(v); break; }
-        }
-      }
-    }
-
-    // Detectar si la promo está activa hoy (lee config_sistema)
-    var promoActiva = false;
-    var diaSem = hoy.getDay(); // 0=DOM..6=SÁB
-    var colDiaPromo = diaSem === 0 ? 7 : diaSem;
-    if (shCfg) {
-      var cfgRows2 = shCfg.getDataRange().getValues();
-      for (var c2 = 1; c2 < cfgRows2.length; c2++) {
-        var lk2 = String(cfgRows2[c2][0] || '').toLowerCase().trim();
-        if (lk2 === 'promo especial activo') {
-          var vp = cfgRows2[c2][colDiaPromo];
-          promoActiva = (String(vp).trim() === '1' || vp === true);
+    // Leer nombre del local desde CONFIG_UI
+    var nombreLocal = 'Mi Local';
+    if (shCfgU) {
+      var cfgRows = shCfgU.getDataRange().getValues();
+      for (var ci = 0; ci < cfgRows.length; ci++) {
+        if (String(cfgRows[ci][0]).trim() === 'NOMBRE_LOCAL') {
+          nombreLocal = String(cfgRows[ci][1] || 'Mi Local').trim();
           break;
         }
       }
     }
 
+    var invRows = shInv.getDataRange().getValues();
+    var START_ROW = 3;
     var productos = [];
-    for (var i = 1; i < invRows.length; i++) {
-      var row  = invRows[i];
-      var cat  = String(row[2] || '').toUpperCase().trim();
-      var est  = String(row[19] || '').toUpperCase();
-      var stock = parseFloat(row[5]) || 0;
 
-      // Incluir PROMOS y BEBIDAS
-      if (cat !== 'PROMOS' && cat !== 'BEBIDAS') continue;
-      if (est === '❌' || est === 'INACTIVO') continue;
+    // Categorías de oferta válidas para el flyer
+    var OFERTAS_VALIDAS = [
+      'promo activa', 'combo activa', 'especial', 'destacada',
+      '2da50', 'RELAMPAGO 10%', 'RELAMPAGO 15%', 'RELAMPAGO 20%', 'RELAMPAGO 25%',
+      '2x1','3x2','4x3','5x4','6x5','7x6','8x7','9x8','10x9'
+    ];
+
+    for (var i = START_ROW - 1; i < invRows.length; i++) {
+      var row = invRows[i];
+      if (!row[0]) continue;
+
+      var enFlyer   = String(row[37] || '').trim(); // AL=38
+      if (enFlyer !== '1') continue; // solo productos marcados EN_FLYER
+
+      var catOferta = String(row[9] || '').trim();  // J=10
+      var stock     = parseFloat(row[5]) || 0;       // F=6
+      var estado    = String(row[14] || '').toUpperCase(); // O=15
+
       if (stock <= 0) continue;
+      if (estado === '❌' || estado === 'INACTIVO') continue;
 
-      var precio      = parseFloat(row[1]) || 0;
-      var precioFinal = parseFloat(row[10]) || precio;
-      var precioAntes = parseFloat(row[11]) || 0;
+      // Verificar que tenga oferta válida
+      var tieneOferta = OFERTAS_VALIDAS.indexOf(catOferta) !== -1 ||
+                        catOferta.indexOf('x') !== -1; // NxM dinámico
+      if (!tieneOferta) continue;
 
-      // Para BEBIDAS: solo incluir si tienen precio especial o son gancho
-      if (cat === 'BEBIDAS' && precioFinal >= precio) continue;
+      var precio      = parseFloat(row[1]) || 0;  // B
+      var precioPromo = parseFloat(row[11]) || 0; // L = $promos_activa
+      var precioK     = parseFloat(row[10]) || 0; // K = precio técnico
 
-      var ahorro = (precioAntes > 0 ? precioAntes : precio) - precioFinal;
-      var descuento = precio > 0 ? Math.round(ahorro / precio * 100) : 0;
+      // Precio final según tipo de oferta
+      var precioFinal = precio;
+      if (catOferta === 'promo activa' || catOferta === 'combo activa') {
+        precioFinal = precioPromo > 0 ? precioPromo : precio;
+      } else if (catOferta === 'especial') {
+        precioFinal = Math.round(precio * 0.9);
+      } else if (catOferta === 'destacada') {
+        var pctDest = parseFloat(row[7]) || 0;
+        precioFinal = Math.round(precio * (1 - pctDest/100));
+      } else if (precioK > 0 && precioK < precio) {
+        precioFinal = precioK;
+      }
+
+      var ahorro = precio - precioFinal;
+      var pct    = precio > 0 ? Math.round(ahorro / precio * 100) : 0;
 
       productos.push({
-        nombre     : String(row[0] || ''),
-        precio     : precioAntes > 0 ? precioAntes : precio,
+        nombre:      String(row[0]).trim(),
+        precio:      precio,
         precioPromo: precioFinal,
-        descuento  : descuento,
-        stock      : stock,
-        categoria  : cat,
-        esGancho   : cat === 'BEBIDAS' // bebidas como gancho/combo
+        descuento:   pct,
+        ahorro:      ahorro,
+        stock:       stock,
+        catOferta:   catOferta,
+        categoria:   String(row[2] || '').trim()
       });
     }
 
-    // Ordenar: mayor margen de ganancia primero (más rentable para el carrito)
-    productos.sort(function(a, b) {
-      var margenA = a.precioPromo - (a.precio * 0.55);
-      var margenB = b.precioPromo - (b.precio * 0.55);
-      return margenB - margenA;
-    });
+    // Ordenar: mayor ahorro absoluto primero
+    productos.sort(function(a, b) { return b.ahorro - a.ahorro; });
 
-    return { success: true, productos: productos, horaCierre: horaCierre, promoActiva: promoActiva };
+    return { success: true, productos: productos, nombreLocal: nombreLocal };
   } catch(e) {
     return { success: false, productos: [], error: e.toString() };
   }
 }
 
-// ── 4. getHorarioLocal ───────────────────────────────────────
-// Lee/escribe los horarios de apertura y cierre por día
-// Params para leer: {} → devuelve { ok, horarios: [{dia, apertura, cierre}] }
-// Params para escribir: { dia: 'LUN', apertura: 9, cierre: 22 }
+
 function getHorarioLocal(datos) {
   try {
     var ss    = SpreadsheetApp.openById(SS_ID);
@@ -3536,7 +3649,7 @@ function actualizarListaCompra() {
       var prov     = String(row[4]  || '').trim();
       var stock    = parseFloat(row[5])  || 0;
       var estado   = String(row[19] || '').toUpperCase();
-      var stockMin = parseFloat(row[13]) || 0; // col N = stock_min_popup
+      var stockMin = parseFloat(row[19]) || 0; // col T(20) = stock_min_popup
 
       if (!nombre) continue;
       if (estado === '❌' || estado === 'INACTIVO') continue;
@@ -3601,27 +3714,6 @@ function getConfigUI() {
     } else {
       config['VENDEDORES_EXCLUIR_ARR'] = [];
     }
-    // ── Defaults genéricos si no están configurados ──
-    var defaults = {
-        'NOMBRE_LOCAL':          'Mi Local',
-        'ALIAS_TRANSFERENCIA':   'mi-alias',
-        'WIFI_SSID':             'MI-LOCAL-WIFI',
-        'WIFI_PASSWORD':         '1234',
-        'VENDEDOR_1':            'Vendedor 1',
-        'VENDEDOR_2':            'Vendedor 2',
-        'TICKET_HEADER':         '🛒 *MI LOCAL*',
-        'TICKET_FOOTER':         '¡Gracias por tu compra! 🙏',
-        'FLYER_SUBTITULO':       '',
-        'FLYER_TAGLINE':         '',
-        'FLYER_FOOTER_URL':      'mi-local.vercel.app',
-        'FIADOS_PAGADOS_LIMITE': 3,
-        'PWA_NOMBRE':            'SmartPOS',
-    };
-    Object.keys(defaults).forEach(function(k) {
-        if (config[k] === undefined || config[k] === null || config[k] === '') {
-            config[k] = defaults[k];
-        }
-    });
     return { ok: true, config: config };
   } catch(e) {
     return { ok: false, error: e.toString(), config: {} };
@@ -3732,59 +3824,5 @@ function getPoolBebidas() {
     return { success: true, productos: productos };
   } catch(e) {
     return { success: false, productos: [], error: e.toString() };
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-// ÚLTIMAS UNIDADES — productos con stock ≤ stockMin (col N)
-// Criterio: stock actual < stockMin calculado por rotación
-// ══════════════════════════════════════════════════════════════
-function _calcularUltimasUnidades(datos, limites) {
-  try {
-    var limite  = (limites && limites.ultimasUnidades) ? parseInt(limites.ultimasUnidades) : 15;
-    var ultimas = [];
-
-    for (var i = 1; i < datos.length; i++) {
-      var fila  = datos[i];
-      var nombre = String(fila[0] || '').trim();
-      if (!nombre) continue;
-
-      var stock   = parseFloat(fila[5]) || 0;
-      var stockMin = parseFloat(fila[13]) || 0; // col N
-      var est     = String(fila[19] || '').toUpperCase();
-      var cat     = String(fila[2]  || '').toUpperCase().trim();
-
-      if (est === '❌' || est === 'INACTIVO') continue;
-      if (stock <= 0) continue;       // sin stock → ya es "sin stock", no "ultimas"
-      if (stockMin <= 0) continue;    // sin mínimo definido → no aplica
-      if (stock >= stockMin) continue; // stock ok → no es últimas
-
-      var precio   = parseFloat(fila[1]) || 0;
-      var rotacion = parseFloat(fila[14]) || 3; // col O = ROTACION
-
-      ultimas.push({
-        id:          String(fila[3] || '').trim(), // col D = ID/descripcion
-        nombre:      nombre,
-        stock:       stock,
-        stockMin:    stockMin,
-        precio:      precio,
-        categoria:   cat,
-        rotacion:    rotacion,
-        faltante:    Math.max(0, stockMin - stock),
-        diasParaVencer: null
-      });
-    }
-
-    // Ordenar por urgencia: mayor déficit relativo primero
-    ultimas.sort(function(a, b) {
-      var urgA = a.stock / Math.max(1, a.stockMin);
-      var urgB = b.stock / Math.max(1, b.stockMin);
-      return urgA - urgB; // menor ratio = más urgente
-    });
-
-    return ultimas.slice(0, limite);
-  } catch(e) {
-    console.error('_calcularUltimasUnidades error:', e);
-    return [];
   }
 }
