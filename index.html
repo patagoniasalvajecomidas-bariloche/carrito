@@ -101,7 +101,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Patagonia Salvaje — POS v185</title>
+    <title>Patagonia Salvaje — POS v186</title>
     <meta name="theme-color" content="#1b4332">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1308,12 +1308,12 @@
                 </div>
 
                 <!-- SECCIÓN OFERTAS -->
-                <div style="background:#f8f9fa;border-radius:12px;padding:12px;margin-bottom:14px;">
-                    <div style="font-size:0.7rem;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;text-align:center;">⚡ Ofertas</div>
+                <div style="border-radius:12px;padding:12px;margin-bottom:14px;border:1.5px solid #e0e0e0;">
+                    <div style="font-size:0.72rem;font-weight:800;color:#333;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center;border-bottom:2px solid #e0e0e0;padding-bottom:6px;">⚡ Configuración de Ofertas</div>
 
                     <!-- Precio promo (col L) — para PROMOS y COMBOS -->
-                    <div style="margin-bottom:10px;">
-                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">🏷️ Precio promo / combo (col L)</div>
+                    <div style="margin-bottom:10px;background:#fff3e0;border-radius:8px;padding:8px;">
+                        <div style="font-size:0.72rem;color:#e65100;font-weight:700;margin-bottom:4px;">🏷️ Precio promo / combo (col L)</div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <span style="color:#888;">$</span>
                             <input type="number" id="ajusteL" min="0" step="100" placeholder="vacío = sin promo"
@@ -1325,8 +1325,8 @@
                     </div>
 
                     <!-- Relámpago (col G) -->
-                    <div style="margin-bottom:10px;">
-                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">⚡ Relámpago (col G) — 0=sin oferta, 1=2x1 ... 14=25%</div>
+                    <div style="margin-bottom:10px;background:#fffde7;border-radius:8px;padding:8px;">
+                        <div style="font-size:0.72rem;color:#f57f17;font-weight:700;margin-bottom:4px;">⚡ Relámpago (col G) — 0=sin oferta, 1=2x1 ... 14=25%</div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <input type="number" id="ajusteG" min="0" max="14" step="1" placeholder="0"
                                    style="flex:1;font-size:1.1rem;font-weight:700;border:2px solid #fff3cd;border-radius:8px;padding:6px 10px;"
@@ -1353,12 +1353,15 @@
                     </div>
 
                     <!-- Destacada (col H) -->
-                    <div style="margin-bottom:10px;">
-                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">🔥 Destacada % descuento (col H) — 0=inactivo, 11-70=activo</div>
+                    <div style="margin-bottom:10px;background:#fce4ec;border-radius:8px;padding:8px;">
+                        <div style="font-size:0.72rem;color:#c62828;font-weight:700;margin-bottom:4px;">🔥 Destacada % descuento (col H) — 0=inactivo, 11-70=activo</div>
                         <div style="display:flex;align-items:center;gap:6px;">
-                            <input type="number" id="ajusteH" min="0" max="70" step="1" placeholder="0"
+                            <input type="number" id="ajusteH" min="0" max="70" step="1" placeholder="0 = inactivo"
                                    style="flex:1;font-size:1.1rem;font-weight:700;border:2px solid #ffe0b2;border-radius:8px;padding:6px 10px;"
-                                   inputmode="numeric" oninput="_ajusteActualizarValidacion()">
+                                   inputmode="numeric" oninput="
+                               const v=parseInt(this.value)||0;
+                               this.style.borderColor = v===0?'#ffe0b2': v<11?'#ef9a9a': v>70?'#ef9a9a':'#a5d6a7';
+                               _ajusteActualizarValidacion()">
                             <span style="color:#888;font-size:0.9rem;">%</span>
                             <button onclick="document.getElementById('ajusteH').value=0;_ajusteActualizarValidacion()"
                                     style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#888;font-size:0.8rem;cursor:pointer;">✕</button>
@@ -1366,8 +1369,8 @@
                     </div>
 
                     <!-- Especial (col I) -->
-                    <div style="margin-bottom:4px;">
-                        <div style="font-size:0.72rem;color:#888;margin-bottom:4px;">⭐ Especial (col I)</div>
+                    <div style="margin-bottom:4px;background:#e3f2fd;border-radius:8px;padding:8px;">
+                        <div style="font-size:0.72rem;color:#1565c0;font-weight:700;margin-bottom:4px;">⭐ Especial (col I)</div>
                         <div style="display:flex;gap:8px;">
                             <button id="ajusteI0" onclick="_ajusteSetI(0)"
                                     style="flex:1;padding:8px;border-radius:8px;border:2px solid #e0e0e0;background:#f5f5f5;font-size:0.85rem;font-weight:600;cursor:pointer;">
@@ -5252,14 +5255,22 @@ async function guardarAjuste() {
         const nombreNuevo = document.getElementById('ajusteNombreNuevo').value.trim().toUpperCase();
         const catAjuste = ajusteCategoriaSeleccionada || null;
         const datos = {
-            producto: ajusteProducto.name,
-            nombreNuevo: nombreNuevo !== ajusteProducto.name ? nombreNuevo : null,
-            stockAntes: ajusteProducto.stock,
-            stockDespues: ajusteValor,
-            precioAntes: ajusteProducto.price,
-            precioDespues: precioNuevo !== ajusteProducto.price ? precioNuevo : null,
-            categoriaAntes: ajusteProducto.category,
-            categoriaDespues: catAjuste !== ajusteProducto.category ? catAjuste : null
+            producto:         ajusteProducto.name,
+            nombreNuevo:      nombreNuevo !== ajusteProducto.name ? nombreNuevo : null,
+            stockAntes:       ajusteProducto.stock,
+            stockDespues:     ajusteValor,
+            stockNuevo:       ajusteValor,
+            precioAntes:      ajusteProducto.price,
+            precioDespues:    precioNuevo !== ajusteProducto.price ? precioNuevo : null,
+            precioNuevo:      precioNuevo,
+            categoriaAntes:   ajusteProducto.category,
+            categoriaDespues: catAjuste !== ajusteProducto.category ? catAjuste : null,
+            categoriaNueva:   catAjuste || ajusteProducto.category,
+            // Campos de oferta
+            precioPromoNuevo: parseFloat(document.getElementById('ajusteL')?.value) || 0,
+            relampagoNuevo:   parseInt(document.getElementById('ajusteG')?.value)   || 0,
+            destacadaNuevo:   parseFloat(document.getElementById('ajusteH')?.value) || 0,
+            especialNuevo:    _ajusteGetI ? _ajusteGetI() : 0,
         };
         const url = API_URL + '?action=ajusteRapido&data=' + encodeURIComponent(JSON.stringify(datos));
         const resp = await _apiFetchUrl('registrarMovimientoCaja', url);
@@ -7193,7 +7204,7 @@ function toggleBebidas() {
 
 // ── Badge de versión + log en consola ──
 (function(){
-    const VERSION = '185';
+    const VERSION = '186';
     const BUILD   = new Date().toLocaleString('es-AR', {
         timeZone: 'America/Argentina/Buenos_Aires',
         day:'2-digit', month:'2-digit', year:'2-digit',
